@@ -1,0 +1,35 @@
+{
+  "id": "time",
+  "name": "Time",
+  "description": "The island says what time it is now and then, in a small pill.",
+  "version": "2.0.0",
+  "kind": "wasm",
+  "module": "time.wasm",
+  "default_on": false,
+  "banners": true,
+  "permissions": {
+    "sees": [
+      { "name": "clock" }
+    ]
+  },
+  "source": { "when": "always" },
+  "settings": {
+    "every": {
+      "label": "Every",
+      "type": "choice",
+      "default": 60,
+      "options": [
+        { "value": 5, "label": "5 minutes" },
+        { "value": 10, "label": "10 minutes" },
+        { "value": 15, "label": "15 minutes" },
+        { "value": 30, "label": "30 minutes" },
+        { "value": 60, "label": "Hour" },
+        { "value": 120, "label": "2 hours" },
+        { "value": 180, "label": "3 hours" },
+        { "value": 360, "label": "6 hours" }
+      ]
+    },
+    "h24": { "label": "24-hour clock", "type": "toggle", "default": false }
+  },
+  "actions": [{ "id": "preview", "label": "Show it now" }]
+}

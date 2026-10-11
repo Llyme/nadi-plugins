@@ -1,0 +1,14 @@
+{
+  "id": "busy-meter",
+  "name": "Busy meter",
+  "description": "A ring in the hub for how busy the PC is, and a pill when the processor stays busy.",
+  "version": "1.0.0",
+  "kind": "wasm",
+  "module": "busy-meter.wasm",
+  "permissions": { "system": true },
+  "source": { "when": "always" },
+  "settings": {
+    "limit": { "label": "Busy above (%)", "type": "number", "default": 90 },
+    "rank": { "label": "Pill rank (0-99; a game is 20)", "type": "number", "default": 5 }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "example-weather",
+  "name": "Weather (example)",
+  "description": "The weather where you are, from open-meteo.com. Set your place below.",
+  "version": "1.1.0",
+  "kind": "declarative",
+  "permissions": { "net": ["api.open-meteo.com"] },
+  "settings": {
+    "latitude": { "label": "Latitude", "type": "number", "default": 25.03 },
+    "longitude": { "label": "Longitude", "type": "number", "default": 121.56 }
+  },
+  "source": {
+    "http": "https://api.open-meteo.com/v1/forecast?latitude={{settings.latitude}}&longitude={{settings.longitude}}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation",
+    "every": "15m",
+    "pick": "current"
+  },
+  "card": {
+    "icon": "sun",
+    "title": "{{temperature_2m | round}}°C",
+    "sub": "Feels like {{apparent_temperature | round}}°C",
+    "peek": "{{temperature_2m | round}}°",
+    "body": [
+      { "facts": [
+        ["Humidity", "{{relative_humidity_2m}}%"],
+        ["Wind", "{{wind_speed_10m}} km/h"],
+        ["Rain", "{{precipitation}} mm"]
+      ] }
+    ]
+  }
+}

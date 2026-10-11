@@ -1,0 +1,14 @@
+{
+  "id": "example-audio-meter",
+  "name": "Audio meter (example)",
+  "description": "What is playing, as bands, in a card that moves with the sound. It hears levels and bands, never the sound itself.",
+  "version": "1.0.0",
+  "kind": "wasm",
+  "module": "audio-meter.wasm",
+  "permissions": { "audio": true },
+  "live": true,
+  "budget": { "call_ms": 4, "memory_mb": 8 },
+  "settings": {
+    "show_bpm": { "label": "Show the tempo", "type": "toggle", "default": true }
+  }
+}

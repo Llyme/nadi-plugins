@@ -1,0 +1,26 @@
+name: release
+
+# A tag (v1.0.0) builds every plugin and attaches nadi-plugins.tar.gz to a release. NADI's "Add plugins from GitHub" reads it.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Test
+        run: cargo test --workspace
+      - name: Build
+        run: ./build.ps1
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nadi-plugins.tar.gz

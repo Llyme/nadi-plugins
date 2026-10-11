@@ -1,0 +1,15 @@
+{
+  "id": "example-game-clock",
+  "name": "Game clock (example)",
+  "description": "Which game is open, and for how long. It says so once after the time you set. It sees which programs have a window, nothing more.",
+  "version": "1.0.0",
+  "kind": "wasm",
+  "module": "game-clock.wasm",
+  "permissions": { "processes": true },
+  "source": { "when": "always" },
+  "budget": { "call_ms": 4, "memory_mb": 8 },
+  "settings": {
+    "games": { "label": "Programs that count as games", "type": "text", "default": "endfield.exe, genshinimpact.exe, eldenring.exe, hl2.exe" },
+    "remind_min": { "label": "Say so after (minutes)", "type": "number", "default": 120 }
+  }
+}

@@ -44,6 +44,19 @@ pub struct Event {
     pub events: Vec<CalEvent>,
     /// `event == "media"`, with the `media` permission: what is playing, a session for each player
     pub sessions: Vec<Session>,
+    /// `event == "notifications"`, with the `notifications` permission: what other apps notified since the last time
+    pub notifications: Vec<Toast>,
+    /// `event == "processes"`, with the `idle` permission: seconds since the keyboard or the mouse was last used
+    pub idle_s: f64,
+    /// `event == "start"`, with the `storage` permission: what the module kept (null if nothing)
+    pub store: Value,
+    /// `event == "command"`: the answer of a command it asked for ([`Reply::run`]): its id, how it ended (0 is well; -1 it
+    /// did not start; -2 it took too long) and what it printed
+    pub id: String,
+    pub code: i64,
+    pub stdout: String,
+    /// the expanded island is open (on every event)
+    pub hub: bool,
     /// `event == "system"`, with the `system` permission (every 2 s)
     pub system: Option<System>,
     /// `event == "action"`: the `action` of the button that was pressed (on a card, a pill or in the plugin's settings),
@@ -90,6 +103,30 @@ pub struct Window {
     pub title: String,
     /// the one that is in front
     pub front: bool,
+    /// which window (a number that stays the same while it is open)
+    pub id: i64,
+    /// its size on the screen, px
+    pub w: i32,
+    pub h: i32,
+    /// a popup that has no button in the task bar (with the `titles` permission, the list has them too)
+    pub tool: bool,
+    /// with the `programs` permission: where the program is, what it is called, and its icon (a `data:` address, told the
+    /// first time only: keep it, by `path`)
+    pub path: String,
+    pub name: String,
+    pub icon: Option<String>,
+}
+
+/// What another app notified (a Windows toast): see [`Event::notifications`].
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct Toast {
+    /// which one, counting up
+    pub seq: u64,
+    /// the app that sent it ("Discord")
+    pub app: String,
+    pub title: String,
+    pub body: String,
 }
 
 /// One player (a music app, a browser tab with a video): what it says it is playing.
@@ -106,6 +143,16 @@ pub struct Session {
     pub duration: f64,
     pub can_previous: bool,
     pub can_next: bool,
+    /// the player takes a jump to a place (needs `media_control` to ask)
+    pub can_seek: bool,
+    /// the player takes a playback speed
+    pub can_rate: bool,
+    /// playback speed, 1.0 is normal
+    pub rate: f64,
+    /// which cover picture it is (0: none). With the `media_art` permission the picture itself, a `data:` address, comes in
+    /// `art` the first time and again only when it changes: keep it
+    pub art_id: u64,
+    pub art: Option<String>,
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]
@@ -116,6 +163,8 @@ pub struct System {
     pub ram: f32,
     pub ram_used_gb: f64,
     pub ram_total_gb: f64,
+    /// 0 to 100; `None` on a PC with no graphics counters, or until they have a baseline
+    pub gpu: Option<f32>,
 }
 
 impl Event {
@@ -228,6 +277,9 @@ impl Button {
 /// A card: what the island draws from a few blocks. Texts are cut at 200 characters, a list at 12 rows, bars at 32.
 #[derive(Serialize, Default, Clone, Debug)]
 pub struct Card {
+    /// which of the plugin's cards this is, when it has several (see [`Reply::more_cards`])
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub id: String,
     pub icon: String,
     /// where it sits among the other cards (a lower number comes first; 70 if not said)
     #[serde(skip_serializing_if = "is_zero")]
@@ -236,6 +288,9 @@ pub struct Card {
     pub sub: String,
     /// what the closed card says at its right
     pub peek: String,
+    /// a picture for its tile (a `data:` address of a png, jpeg, webp or gif), or "keep" for the one it had
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub image: String,
     pub body: Vec<Value>,
 }
 
@@ -246,6 +301,11 @@ fn is_zero(n: &i32) -> bool {
 impl Card {
     pub fn new() -> Self {
         Card::default()
+    }
+    /// a name for this card among the plugin's own
+    pub fn id(mut self, v: impl Into<String>) -> Self {
+        self.id = v.into();
+        self
     }
     /// one of the island's line icons: `wave`, `gamepad`, `sun`, `download`, `calendar`, `music`, `globe`, `clock`, `bell`...
     pub fn icon(mut self, v: impl Into<String>) -> Self {
@@ -266,6 +326,16 @@ impl Card {
     }
     pub fn peek(mut self, v: impl Into<String>) -> Self {
         self.peek = v.into();
+        self
+    }
+    /// a picture for the card's tile: a `data:` address, or "keep" to say the one it had stays (so it need not be sent again)
+    pub fn tile(mut self, v: impl Into<String>) -> Self {
+        self.image = v.into();
+        self
+    }
+    /// a thin bar you can press: `value` is how far, 0 to 1. A press is the action `action`, with `fraction` (0 to 1) in `args`
+    pub fn seek(mut self, value: f32, action: &str) -> Self {
+        self.body.push(json!({ "kind": "seek", "value": value, "action": action }));
         self
     }
     /// a bar, 0 to 1
@@ -315,6 +385,9 @@ impl Card {
 #[derive(Serialize, Default, Clone, Debug)]
 pub struct Pill {
     pub icon: String,
+    /// a picture for its tile, or "keep" for the one it had
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub image: String,
     pub title: String,
     pub sub: String,
     /// a short text at its right (a time, a count)
@@ -347,6 +420,11 @@ impl Pill {
     }
     pub fn icon(mut self, v: impl Into<String>) -> Self {
         self.icon = v.into();
+        self
+    }
+    /// a picture for the tile: a `data:` address, or "keep" for the one it had
+    pub fn image(mut self, v: impl Into<String>) -> Self {
+        self.image = v.into();
         self
     }
     pub fn title(mut self, v: impl Into<String>) -> Self {
@@ -399,11 +477,18 @@ pub struct Ring {
     pub tip: String,
     /// `#rrggbb`
     pub color: String,
+    /// in the head as soon as it shows (false: it waits in the tray of edit mode)
+    pub start: bool,
 }
 
 impl Ring {
     pub fn new(id: impl Into<String>, pct: f32, tip: impl Into<String>, color: impl Into<String>) -> Self {
-        Ring { id: id.into(), pct, tip: tip.into(), color: color.into() }
+        Ring { id: id.into(), pct, tip: tip.into(), color: color.into(), start: true }
+    }
+    /// keep it in the tray until the user places it
+    pub fn in_tray(mut self) -> Self {
+        self.start = false;
+        self
     }
 }
 
@@ -416,6 +501,15 @@ pub struct Say {
     pub pill: Option<SayPill>,
     /// only when nothing fills the screen: not over the hub, not while a game is on
     pub ambient: bool,
+    /// the banner's title (the plugin's name if empty)
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub title: String,
+    /// a link that pressing the banner opens: it has to start with one the manifest names in `permissions.open`
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub open: String,
+    /// an app whose banners pile up: too many in a row become one that counts them
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub group: String,
 }
 
 #[derive(Serialize, Clone, Debug, Default)]
@@ -453,6 +547,21 @@ impl Say {
     /// only when nothing fills the screen
     pub fn ambient(mut self) -> Self {
         self.ambient = true;
+        self
+    }
+    /// a title of its own for the banner
+    pub fn titled(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+    /// pressing the banner opens this link (see `permissions.open`)
+    pub fn opens(mut self, url: impl Into<String>) -> Self {
+        self.open = url.into();
+        self
+    }
+    /// banners of this app pile up: too many in a row become one that counts them
+    pub fn grouped(mut self, group: impl Into<String>) -> Self {
+        self.group = group.into();
         self
     }
 }
@@ -525,6 +634,11 @@ impl Blocks {
     /// today's date, as the island's clock says it
     pub fn clock_date(mut self) -> Self {
         self.0.push(json!({ "clock": "date" }));
+        self
+    }
+    /// a few thin bars stacked, each `(label, part 0 to 1, colour "#rrggbb", words at its right)`; the words show in a tooltip
+    pub fn bars(mut self, items: &[(&str, f32, &str, &str)]) -> Self {
+        self.0.push(json!({ "bars": items.iter().map(|(l, p, c, t)| json!({ "label": l, "part": p, "color": c, "text": t })).collect::<Vec<_>>() }));
         self
     }
     /// a thin bar, 0 to 1, with a few words at its right
@@ -672,8 +786,11 @@ pub struct Reply {
     quiet: Option<bool>,
     note: Option<Option<String>>,
     wake_ms: Option<u64>,
-    media: Option<(String, String)>,
+    media: Option<(String, String, f64)>,
     modal: Option<Option<Modal>>,
+    run: Vec<(String, Vec<String>)>,
+    store: Option<Value>,
+    more: Option<Vec<Card>>,
     widgets: Vec<(String, Blocks, Blocks)>,
     pane: Option<Option<(String, Blocks, bool)>>,
 }
@@ -714,6 +831,25 @@ impl Reply {
     /// take the pane away (the cards are back)
     pub fn close_pane() -> Self {
         Reply { pane: Some(None), ..Reply::default() }
+    }
+    /// Have the host run a command (up to 4 in a reply) and tell you what it printed, in an `event == "command"` with this
+    /// `id`. The command line has to fit one of the shapes the manifest lists in `permissions.run`: `["git", "-C", dir,
+    /// "status"]` fits `"git -C * status"`.
+    pub fn run(mut self, id: &str, line: &[&str]) -> Self {
+        self.run.push((id.to_string(), line.iter().map(|t| t.to_string()).collect()));
+        self
+    }
+    /// Keep this (at most 64 KB as text) for the next time: it comes back in `Event::store` with the next start. Needs the
+    /// `storage` permission.
+    pub fn store(mut self, value: Value) -> Self {
+        self.store = Some(value);
+        self
+    }
+    /// The plugin's cards after the first: they replace the ones it had (an empty list takes them away). Give each its own
+    /// [`Card::id`].
+    pub fn more_cards(mut self, cards: Vec<Card>) -> Self {
+        self.more = Some(cards);
+        self
     }
     /// nothing new: the island keeps what it shows
     pub fn nothing() -> Self {
@@ -804,10 +940,16 @@ impl Reply {
         self
     }
 
-    /// Press a button of the player: "play_pause", "next" or "previous". `source` is the [`Session::source`] of the player
-    /// (empty for the one in front). Needs the `media_control` permission.
+    /// Press a button of the player: "play_pause", "next", "previous" or "focus" (bring the player to the front). `source` is
+    /// the [`Session::source`] of the player (empty for the one in front). Needs the `media_control` permission.
     pub fn media(mut self, action: impl Into<String>, source: impl Into<String>) -> Self {
-        self.media = Some((action.into(), source.into()));
+        self.media = Some((action.into(), source.into(), 0.0));
+        self
+    }
+    /// A control that takes a number: "seek" (to that second), "seek_by" (that many seconds forward, or back when negative) or
+    /// "set_rate" (a playback speed, 0.1 to 16).
+    pub fn media_to(mut self, action: impl Into<String>, source: impl Into<String>, value: f64) -> Self {
+        self.media = Some((action.into(), source.into(), value));
         self
     }
 
@@ -855,6 +997,15 @@ impl Reply {
             }
             o.insert("widgets".into(), Value::Object(w));
         }
+        if let Some(cards) = &self.more {
+            o.insert("cards_more".into(), serde_json::to_value(cards).unwrap_or(Value::Null));
+        }
+        if !self.run.is_empty() {
+            o.insert("run".into(), Value::Array(self.run.iter().map(|(id, line)| json!({ "id": id, "line": line })).collect()));
+        }
+        if let Some(v) = &self.store {
+            o.insert("store".into(), v.clone());
+        }
         match &self.pane {
             Some(Some((title, show, open))) => {
                 o.insert("pane".into(), json!({ "title": title, "blocks": show.to_json(), "open": open }));
@@ -885,8 +1036,8 @@ impl Reply {
         if let Some(ms) = self.wake_ms {
             o.insert("wake_ms".into(), json!(ms));
         }
-        if let Some((a, s)) = &self.media {
-            o.insert("media".into(), json!({ "action": a, "source": s }));
+        if let Some((a, s, v)) = &self.media {
+            o.insert("media".into(), json!({ "action": a, "source": s, "value": v }));
         }
         Value::Object(o)
     }

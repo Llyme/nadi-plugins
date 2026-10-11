@@ -1,0 +1,29 @@
+{
+  "id": "work",
+  "name": "Work",
+  "description": "What you work on: your editor, your hours, and a pill for the session you are in.",
+  "version": "2.0.0",
+  "kind": "wasm",
+  "module": "work.wasm",
+  "default_on": false,
+  "permissions": {
+    "processes": true,
+    "titles": true,
+    "idle": true,
+    "programs": true,
+    "storage": true,
+    "files": [
+      "%APPDATA%/Code/User/globalStorage/storage.json",
+      "%APPDATA%/Code - Insiders/User/globalStorage/storage.json",
+      "%APPDATA%/Cursor/User/globalStorage/storage.json",
+      "%APPDATA%/VSCodium/User/globalStorage/storage.json",
+      "%APPDATA%/Windsurf/User/globalStorage/storage.json"
+    ],
+    "run": [
+      "git -C * rev-parse --abbrev-ref HEAD",
+      "git -C * diff --numstat --no-renames HEAD",
+      "git -C * ls-files --others --exclude-standard"
+    ]
+  },
+  "source": { "when": "always" }
+}

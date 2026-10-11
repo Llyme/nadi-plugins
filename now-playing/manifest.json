@@ -1,0 +1,11 @@
+{
+  "id": "now-playing",
+  "name": "Now playing",
+  "description": "A pill and a card for what is playing, with play, skip, seek and speed.",
+  "version": "2.0.0",
+  "kind": "wasm",
+  "module": "now-playing.wasm",
+  "default_on": false,
+  "permissions": { "media": true, "media_art": true, "media_control": true },
+  "source": { "when": "always" }
+}

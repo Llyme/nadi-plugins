@@ -95,7 +95,7 @@ mod tests {
             event: "system".into(),
             now,
             settings: json!({ "limit": 90 }),
-            system: Some(System { cpu, ram, ram_used_gb: 8.0, ram_total_gb: 16.0 }),
+            system: Some(System { cpu, ram, ram_used_gb: 8.0, ram_total_gb: 16.0, gpu: None }),
             ..Event::default()
         }
     }

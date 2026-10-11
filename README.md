@@ -1,6 +1,8 @@
 # NADI plugins
 
-Plugins for [NADI](https://github.com/Llyme/not-another-dynamic-island), and the Rust SDK they are written with. In NADI, open Settings > Plugins, press `+`, and paste `Llyme/nadi-plugins`.
+The official plugins for [NADI](https://github.com/Llyme/not-another-dynamic-island), and the Rust SDK to write your own.
+
+To install, open Settings > Plugins in NADI, press `+`, and paste `Llyme/nadi-plugins`.
 
 | Plugin | Kind | What it does |
 |---|---|---|
@@ -9,6 +11,12 @@ Plugins for [NADI](https://github.com/Llyme/not-another-dynamic-island), and the
 | `audio-meter` | module, example | Hears the sound and draws a card that moves with it. |
 | `busy-meter` | module, example | A ring in the hub, a pill with buttons, a window of its own. |
 | `game-clock` | module, example | Says how long a game has been on. |
+| `notification-mirror` | module | The notifications of other apps (Discord, Viber, ...) as banners on the island. |
+| `work` | module | What you work on: your editor, your hours and its git state, with a pill for the session you are in. |
+| `now-playing` | module | A pill and a card for what is playing, with play, skip, seek and speed. |
+| `eyes` | face | The two eyes of the island: they follow the cursor, blink, and move to the beat. |
+| `sound-light` | face | An aura behind the island that dances to what plays, and spills a little outside it. |
+| `system-meters` | module | Three thin bars for the CPU, the memory and the graphics card, with a ring for each in the tray. |
 | `weather` | declarative, example | A card and a pill from a web API. |
 
 Every folder with a `manifest.json` is one plugin. The format is in [PLUGINS.md](https://github.com/Llyme/not-another-dynamic-island/blob/main/PLUGINS.md).

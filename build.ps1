@@ -21,6 +21,13 @@ try {
       $built = Join-Path $out (($dir.Name -replace "-", "_") + ".wasm")
       Copy-Item $built (Join-Path $to $manifest.module) -Force
     }
+    # (a bundle: one plugin made of modules, each built from the crate its part names)
+    if ($manifest.kind -eq "bundle") {
+      foreach ($part in $manifest.parts) {
+        $built = Join-Path $out (($part.crate -replace "-", "_") + ".wasm")
+        Copy-Item $built (Join-Path $to $part.module) -Force
+      }
+    }
     Get-ChildItem $to | ForEach-Object { "dist/{0}/{1}  {2:N0} bytes" -f $dir.Name, $_.Name, $_.Length }
   }
   # the file a release carries

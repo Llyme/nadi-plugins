@@ -1,0 +1,69 @@
+{
+  "id": "claude",
+  "name": "Claude",
+  "description": "Your Claude Code sessions as cards, a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits you have used.",
+  "version": "3.0.0",
+  "kind": "bundle",
+  "default_on": false,
+  "banners": true,
+  "settings": {
+    "alerts": {
+      "label": "Pill when a session needs me or finishes",
+      "type": "toggle",
+      "default": true
+    },
+    "usage": {
+      "label": "Show how much of my limits is used",
+      "type": "toggle",
+      "default": true
+    }
+  },
+  "actions": [
+    {
+      "part": "usage",
+      "id": "usage_login",
+      "label": "Sign In",
+      "ask": "Paste the code the Claude page shows",
+      "then": "usage_finish"
+    }
+  ],
+  "widgets": [
+    {
+      "part": "usage",
+      "id": "bars",
+      "name": "Bars",
+      "place": "right",
+      "rank": 40,
+      "width": 68
+    }
+  ],
+  "parts": [
+    {
+      "id": "sessions",
+      "module": "sessions.wasm",
+      "crate": "claude-code",
+      "permissions": {
+        "claude": true,
+        "processes": true,
+        "titles": true,
+        "programs": true
+      }
+    },
+    {
+      "id": "usage",
+      "module": "usage.wasm",
+      "crate": "claude-usage",
+      "tick": "5s",
+      "permissions": {
+        "net": [
+          "api.anthropic.com",
+          "console.anthropic.com"
+        ],
+        "open": [
+          "https://claude.ai/oauth/authorize"
+        ],
+        "storage": true
+      }
+    }
+  ]
+}

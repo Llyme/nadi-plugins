@@ -7,5 +7,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-nadi-plugin = { path = "../sdk" }
+nadi-plugin = { path = "../../sdk" }
 serde_json = "1"

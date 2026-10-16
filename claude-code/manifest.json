@@ -1,0 +1,24 @@
+{
+  "id": "claude-code",
+  "name": "Claude Code",
+  "description": "Your Claude Code sessions as cards, and a pill when one needs you or has finished.",
+  "version": "2.0.0",
+  "kind": "wasm",
+  "module": "claude-code.wasm",
+  "default_on": false,
+  "banners": true,
+  "permissions": {
+    "claude": true,
+    "processes": true,
+    "titles": true,
+    "programs": true
+  },
+  "source": { "when": "always" },
+  "settings": {
+    "alerts": {
+      "label": "Pill when a session needs me or finishes",
+      "type": "toggle",
+      "default": true
+    }
+  }
+}

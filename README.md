@@ -13,6 +13,11 @@ To install, open Settings > Plugins in NADI, press `+`, and paste `Llyme/nadi-pl
 | `game-clock` | module, example | Says how long a game has been on. |
 | `notification-mirror` | module | The notifications of other apps (Discord, Viber, ...) as banners on the island. |
 | `work` | module | What you work on: your editor, your hours and its git state, with a pill for the session you are in. |
+| `games` | module | The game you are playing, for how long, and how it runs: frames per second, and what it uses of the CPU, the memory and the graphics card. |
+| `downloads` | module | What your browsers, Steam and qBittorrent are downloading, on one card. |
+| `claude-code` | module | Your Claude Code sessions as cards (what each is doing, its context, its cost), and a pill when one needs you or has finished. |
+| `claude-usage` | module | How much of your Claude 5-hour and 7-day limits is used: two bars in the head, a ring for each in the tray, and a peek when one moves. Signs in to Claude on its own; it reaches Anthropic and sees nothing of this PC. |
+| `page-reader` | module | A card for each page you have open (a walkthrough, a post, an article...): what kind of page it is, what is worth knowing, and guides laid out to be read. Needs the NADI browser extension. |
 | `now-playing` | module | A pill and a card for what is playing, with play, skip, seek and speed. |
 | `eyes` | face | The two eyes of the island: they follow the cursor, blink, and move to the beat. |
 | `sound-light` | face | An aura behind the island that dances to what plays, and spills a little outside it. |

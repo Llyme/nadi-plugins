@@ -1,0 +1,11 @@
+{
+  "id": "games",
+  "name": "Games",
+  "description": "The game you are playing, for how long, and how it runs: frames per second, and what it uses of the CPU, the memory and the graphics card.",
+  "version": "2.0.0",
+  "kind": "wasm",
+  "module": "games.wasm",
+  "default_on": false,
+  "permissions": { "processes": true, "programs": true, "usage": true },
+  "source": { "when": "always" }
+}

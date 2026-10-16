@@ -75,21 +75,26 @@ fn reply_for(st: &mut State) -> Reply {
     if let Some(p) = progress {
         pill = pill.progress(p);
     }
-    let mut card = Card::new().icon("music").tile(image).rank(CARD_RANK).title(s.title.clone()).sub(s.artist.clone());
-    card.body.push(json!({ "kind": "buttons", "items": transport(&s) }));
-    if let Some(p) = progress {
-        card = card.seek(p, "seek");
-    }
-    let mut more: Vec<Button> = Vec::new();
+    // the card: the buttons in its header, and under it the seek bar with the jumps at its sides and the speed after them
+    let mut card = Card::new().icon("music").tile(image).rank(CARD_RANK).title(s.title.clone()).sub(s.artist.clone()).controls(transport(&s));
+    let mut back: Vec<Button> = Vec::new();
+    let mut after: Vec<Button> = Vec::new();
     if s.can_seek {
-        more.push(Button::new("Back 5 seconds", "back").icon("back"));
-        more.push(Button::new("Forward 5 seconds", "fwd").icon("fwd"));
+        back.push(Button::new("Back 5 seconds", "back").icon("back"));
+        after.push(Button::new("Forward 5 seconds", "fwd").icon("fwd"));
     }
     if s.can_rate {
-        more.push(Button::new(rate_text(if s.rate > 0.0 { s.rate } else { 1.0 }), "rate"));
+        after.push(Button::new(rate_text(if s.rate > 0.0 { s.rate } else { 1.0 }), "rate"));
     }
-    if !more.is_empty() {
-        card.body.push(json!({ "kind": "buttons", "items": more }));
+    match progress {
+        Some(p) => card = card.seek_with(p, "seek", back, after),
+        // (no length to seek in: the buttons stand alone)
+        None => {
+            back.extend(after);
+            if !back.is_empty() {
+                card = card.buttons(back);
+            }
+        }
     }
     let others: Vec<(String, String, Option<f32>)> = st.sessions.iter().filter(|o| o.source != s.source && !o.title.is_empty()).map(|o| (o.title.clone(), o.artist.clone(), None)).collect();
     if !others.is_empty() {
@@ -183,10 +188,13 @@ mod tests {
         assert_eq!(r["pill"]["buttons"][1]["icon"], "pause");
         assert_eq!(r["pill"]["image"], "data:image/png;base64,AAAA");
         assert_eq!(r["card"]["title"], "Playing");
-        assert_eq!(r["card"]["body"][1]["kind"], "seek");
-        assert_eq!(r["card"]["body"][1]["value"].as_f64().map(|v| (v * 100.0).round()), Some(25.0));
+        assert_eq!(r["card"]["controls"][1]["icon"], "pause");
+        assert_eq!(r["card"]["body"][0]["kind"], "seek");
+        assert_eq!(r["card"]["body"][0]["value"].as_f64().map(|v| (v * 100.0).round()), Some(25.0));
+        assert_eq!(r["card"]["body"][0]["before"][0]["action"], "back");
+        assert_eq!(r["card"]["body"][0]["after"][1]["action"], "rate");
         // the other player is listed
-        assert_eq!(r["card"]["body"][3]["rows"][0]["title"], "Paused");
+        assert_eq!(r["card"]["body"][1]["rows"][0]["title"], "Paused");
         // the picture is sent once, then kept
         let r = handle(&media(vec![session("a", "Paused", false), session("b", "Playing", true)])).to_json();
         assert_eq!(r["pill"]["image"], "keep");

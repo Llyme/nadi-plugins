@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct Event {
     /// "start" (the first call, and again when the plugin is switched on), "audio", "processes", "file", "calendar",
-    /// "media", "system", "action" or "tick"
+    /// "media", "system", "usage", "downloads", "notifications", "command", "action" or "tick"
     pub event: String,
     /// milliseconds since 1970
     pub now: u64,
@@ -55,10 +55,33 @@ pub struct Event {
     pub id: String,
     pub code: i64,
     pub stdout: String,
+    /// `event == "fetched"`: the answer of a request it asked for ([`Reply::fetch`]), with its `id`: the HTTP status (0: the network
+    /// did not answer, and `error` says why) and what came back (up to 256 KB)
+    pub status: u16,
+    pub body: String,
+    pub error: String,
+    /// 32 random bytes as hex, on every event of a module that may reach a host (`permissions.net`): it has no randomness of its
+    /// own, and a sign-in needs some
+    pub rand: String,
+    /// `event == "browser"`, with the `browser` permission: the pages of the browsers (about every second, when something changed)
+    pub browser: Option<BrowserFeed>,
+    /// `event == "browser_done"`: a button that was pressed (`op == "press"`) or a tab that was sent on (`"go"`), with its `id`
+    pub op: String,
+    pub ok: bool,
+    /// `event == "claude"`, with the `claude` permission (every 2 s): the Claude Code sessions on this PC. A session may come
+    /// twice (it has more than one process): keep the one with the later `updated`.
+    pub claude: Vec<ClaudeSession>,
     /// the expanded island is open (on every event)
     pub hub: bool,
     /// `event == "system"`, with the `system` permission (every 2 s)
     pub system: Option<System>,
+    /// `event == "usage"`, with the `usage` permission, while it watches (see [`Reply::watch`]): what each of the programs it
+    /// watches uses (every second)
+    pub usage: Vec<Usage>,
+    /// `event == "downloads"`, with the `downloads` permission (every 1.5 s): what is downloading now ...
+    pub observed: Vec<Download>,
+    /// ... and what stopped showing up since the last time
+    pub ended: Vec<Ended>,
     /// `event == "action"`: the `action` of the button that was pressed (on a card, a pill or in the plugin's settings),
     /// and what the button sent with it. A button of the plugin's [`Modal`] is the action "modal", with `args` =
     /// `{ "button", "values", "closed" }`.
@@ -115,6 +138,9 @@ pub struct Window {
     pub path: String,
     pub name: String,
     pub icon: Option<String>,
+    /// with the `programs` permission: it covers its whole screen and has no title bar (what a game does; a maximized
+    /// browser or editor keeps its title bar)
+    pub full: bool,
 }
 
 /// What another app notified (a Windows toast): see [`Event::notifications`].
@@ -165,6 +191,125 @@ pub struct System {
     pub ram_total_gb: f64,
     /// 0 to 100; `None` on a PC with no graphics counters, or until they have a baseline
     pub gpu: Option<f32>,
+}
+
+/// What the browsers' pages are (see [`Event::browser`]).
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct BrowserFeed {
+    /// the browsers that have the extension connected ("msedge", "chrome")
+    pub browsers: Vec<String>,
+    /// for each, the titles of its tabs, lower case, as the extension lists them
+    pub tabs: std::collections::HashMap<String, Vec<String>>,
+    /// for each, the titles of the pages the extension has read, the ones in front first
+    pub open: std::collections::HashMap<String, Vec<String>>,
+    /// cards whose tab went to another page of its guide: (browser, title before, title now)
+    pub moves: Vec<(String, String, String)>,
+    /// the pages it watches that changed (at most two at a time), as the extension described them: `browser`, `title`, `url`,
+    /// `version`, `vh`, `words`, `meta`, `ld`, `video`, `guide` (`key`, `text`, `heads`), `image` (an id) and `nodes`
+    pub pages: Vec<Value>,
+}
+
+/// A Claude Code session (see [`Event::claude`]).
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeSession {
+    pub id: String,
+    pub pid: u32,
+    /// what the session says it is: "busy", "idle", or something with "wait" in it
+    pub status: String,
+    /// when it waits for you: what for ("permission", "input"...), else empty
+    pub waiting_for: String,
+    /// ms since 1970
+    pub started: u64,
+    pub updated: u64,
+    pub name: String,
+    /// the folder it runs in
+    pub cwd: String,
+    /// what the conversation is about, and the prompt it is answering, when they are known
+    pub title: Option<String>,
+    pub prompt: Option<String>,
+    /// the model's id ("claude-sonnet-5-5")
+    pub model: Option<String>,
+    pub context_tokens: u64,
+    pub cost_usd: f64,
+    pub lines_added: u64,
+    pub lines_removed: u64,
+    /// the newest tool calls, newest first (at most three)
+    pub feed: Vec<ClaudeItem>,
+    /// what the model is doing at the end of the transcript
+    pub last: Option<ClaudeItem>,
+    /// the window it runs in: "VS Code", "Terminal"...
+    pub host: ClaudeHost,
+}
+
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeItem {
+    /// one of the island's line icons
+    pub icon: String,
+    pub text: String,
+}
+
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeHost {
+    pub label: String,
+    /// one of the island's line icons
+    pub icon: String,
+    /// the program's path, for [`Reply::focus`]
+    pub exe: Option<String>,
+}
+
+/// What one program uses (see [`Event::usage`]).
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct Usage {
+    pub pid: u32,
+    /// false once the program has ended
+    pub alive: bool,
+    /// 0 to 100, its share of the whole CPU
+    pub cpu: f32,
+    pub ram_gb: f64,
+    /// 0 to 100, its share of the installed memory
+    pub ram: f32,
+    /// 0 to 100; `None` until the counters have a baseline, or on a PC without them
+    pub gpu: Option<f32>,
+    pub vram_gb: Option<f64>,
+    /// frames per second, the slowest 1% of frames as frames per second, and the latest frame times (ms, oldest first); `None`
+    /// when the program does not present through DXGI, or Windows refused the trace (`fps_denied`)
+    pub fps: Option<f64>,
+    pub low_fps: Option<f64>,
+    pub frame_ms: Vec<f32>,
+    pub fps_denied: bool,
+}
+
+/// One download that is going on (see [`Event::observed`]).
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct Download {
+    /// a name that stays the same for this download
+    pub id: String,
+    /// "Chrome", "Steam", "qBittorrent"...
+    pub source: String,
+    /// "browser", "steam" or "torrent"
+    pub kind: String,
+    pub name: String,
+    pub received: u64,
+    pub total: Option<u64>,
+    /// bytes per second, when the source says (else work it out from `received`)
+    pub speed: Option<f64>,
+}
+
+/// A download that stopped showing up (see [`Event::ended`]).
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct Ended {
+    pub id: String,
+    /// it is done (false: it was cancelled or paused)
+    pub finished: bool,
+    /// where the file is, for a finished one (pass it to [`Reply::reveal`] to show it in its folder)
+    pub path: Option<String>,
 }
 
 impl Event {
@@ -291,7 +436,72 @@ pub struct Card {
     /// a picture for its tile (a `data:` address of a png, jpeg, webp or gif), or "keep" for the one it had
     #[serde(skip_serializing_if = "String::is_empty")]
     pub image: String,
+    /// buttons in the header, at the right (a player's previous, play and next): up to 3
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub controls: Vec<Button>,
+    /// a letter in a colour, with a ring, in place of the icon
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<Tile>,
+    /// a line icon before the second line (what it is doing)
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub sub_icon: String,
+    /// how it stands: "waiting" (it needs you), "working", "finished" or "idle". The card is marked for it, and its icon is at the right.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub tone: String,
+    /// small icons at the right of the header
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub badges: Vec<Badge>,
+    /// an action the module is called with when the card's icon is pressed (go to the thing the card is about)
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub focus: String,
     pub body: Vec<Value>,
+}
+
+/// A letter in a colour with a ring around it (how full something is): what a card, a pill or a brief shows in place of an icon.
+#[derive(Serialize, Default, Clone, Debug)]
+pub struct Tile {
+    /// one or two letters
+    pub text: String,
+    /// `#rrggbb`
+    pub color: String,
+    /// 0 to 1: how far the ring goes round (none: no ring)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ring: Option<f32>,
+    /// `#rrggbb`
+    pub ring_color: String,
+}
+
+impl Tile {
+    pub fn new(text: impl Into<String>, color: impl Into<String>) -> Self {
+        Tile { text: text.into(), color: color.into(), ring: None, ring_color: "#5ac88c".into() }
+    }
+    /// a ring around it, 0 to 1, in a colour
+    pub fn ring(mut self, part: f32, color: impl Into<String>) -> Self {
+        self.ring = Some(part);
+        self.ring_color = color.into();
+        self
+    }
+}
+
+/// A small icon at the right of a header, with what it says when hovered.
+#[derive(Serialize, Default, Clone, Debug)]
+pub struct Badge {
+    pub icon: String,
+    pub tip: String,
+}
+
+impl Badge {
+    pub fn new(icon: impl Into<String>, tip: impl Into<String>) -> Self {
+        Badge { icon: icon.into(), tip: tip.into() }
+    }
+}
+
+/// A row of a pill that shows how far something is: a label, a bar (0 to 1) and its number. The bar slides when the number moves.
+#[derive(Serialize, Default, Clone, Debug)]
+pub struct PillRow {
+    pub label: String,
+    pub value: f32,
+    pub text: String,
 }
 
 fn is_zero(n: &i32) -> bool {
@@ -338,6 +548,16 @@ impl Card {
         self.body.push(json!({ "kind": "seek", "value": value, "action": action }));
         self
     }
+    /// buttons in the card's header, at the right (up to 3): what the card's thing is controlled with
+    pub fn controls(mut self, items: Vec<Button>) -> Self {
+        self.controls = items;
+        self
+    }
+    /// a seek bar with buttons at its sides (up to 2 before, 3 after): a player's jump back and forward, and its speed
+    pub fn seek_with(mut self, value: f32, action: &str, before: Vec<Button>, after: Vec<Button>) -> Self {
+        self.body.push(json!({ "kind": "seek", "value": value, "action": action, "before": before, "after": after }));
+        self
+    }
     /// a bar, 0 to 1
     pub fn progress(mut self, v: f32) -> Self {
         self.body.push(json!({ "kind": "progress", "value": v }));
@@ -370,6 +590,64 @@ impl Card {
     /// buttons (at most 6); each sends the module an `action` event
     pub fn buttons(mut self, items: Vec<Button>) -> Self {
         self.body.push(json!({ "kind": "buttons", "items": items }));
+        self
+    }
+    /// the card's second line opens with this icon, and its tone
+    pub fn live(mut self, icon: impl Into<String>, tone: impl Into<String>) -> Self {
+        self.sub_icon = icon.into();
+        self.tone = tone.into();
+        self
+    }
+    pub fn tile_of(mut self, tile: Tile) -> Self {
+        self.tile = Some(tile);
+        self
+    }
+    pub fn badges(mut self, items: Vec<Badge>) -> Self {
+        self.badges = items;
+        self
+    }
+    /// pressing the card's icon calls the module with this action
+    pub fn focus_action(mut self, action: impl Into<String>) -> Self {
+        self.focus = action.into();
+        self
+    }
+    /// a page's main picture the browser extension sent, by its id (needs the `browser` permission)
+    pub fn picture(mut self, id: u64) -> Self {
+        self.body.push(json!({ "kind": "picture", "id": id }));
+        self
+    }
+    /// a guide laid out to be read, by its key, with the page's main picture beside it (needs the `browser` permission). The reader
+    /// asks the module for another section with the action `go` and `args.url`.
+    pub fn reader(mut self, key: &str, image: Option<u64>) -> Self {
+        self.body.push(json!({ "kind": "reader", "key": key, "image": image }));
+        self
+    }
+    /// a paragraph that opens with a word in bold ("Prompt"); two lines at most
+    pub fn labeled(mut self, label: &str, text: impl Into<String>) -> Self {
+        self.body.push(json!({ "kind": "text", "label": label, "text": text.into() }));
+        self
+    }
+    /// icon rows (at most 8): `(icon, text, now)`; the one that is `now` is lit
+    pub fn lines(mut self, rows: &[(String, String, bool)]) -> Self {
+        let rows: Vec<Value> = rows.iter().map(|(i, t, n)| json!({ "icon": i, "text": t, "now": n })).collect();
+        self.body.push(json!({ "kind": "lines", "rows": rows }));
+        self
+    }
+    /// a label, a bar (0 to 1) and what it says, in a colour (`#rrggbb`)
+    pub fn meter(mut self, label: &str, value: f32, text: &str, color: &str) -> Self {
+        self.body.push(json!({ "kind": "meter", "label": label, "value": value, "text": text, "color": color }));
+        self
+    }
+    /// a few numbers, each with its name under it: `(value, name)`
+    pub fn stats(mut self, items: &[(String, &str)]) -> Self {
+        let items: Vec<Value> = items.iter().map(|(v, l)| json!({ "value": v, "label": l })).collect();
+        self.body.push(json!({ "kind": "stats", "items": items }));
+        self
+    }
+    /// a line through numbers, oldest first (at most 120): frame times, a speed. Drawn from 0 to `max` (the top of the
+    /// graph, in the same unit), with a faint line at each of `marks` (at most 4)
+    pub fn graph(mut self, values: &[f32], max: f32, marks: &[f32]) -> Self {
+        self.body.push(json!({ "kind": "graph", "values": values, "max": max, "marks": marks }));
         self
     }
     /// a picture, as a `data:image/png;base64,...` address (png, jpeg, webp or gif, up to 200 KB)
@@ -408,6 +686,18 @@ pub struct Pill {
     pub h: f32,
     /// "" or "big" (large light digits)
     pub look: String,
+    /// it comes by itself and is looked at, like a banner: the island drops down for it, and its `rank` may be up to 100
+    #[serde(skip_serializing_if = "is_false")]
+    pub brief: bool,
+    /// rows of a label, a bar and a number (at most 3), in place of the text
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rows: Vec<PillRow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<Tile>,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 fn is_zero_f(n: &f32) -> bool {
@@ -462,6 +752,19 @@ impl Pill {
     }
     pub fn big(mut self) -> Self {
         self.look = "big".into();
+        self
+    }
+    /// let it come by itself (see [`Pill::brief`])
+    pub fn briefly(mut self) -> Self {
+        self.brief = true;
+        self
+    }
+    pub fn rows(mut self, rows: Vec<PillRow>) -> Self {
+        self.rows = rows;
+        self
+    }
+    pub fn tile_of(mut self, tile: Tile) -> Self {
+        self.tile = Some(tile);
         self
     }
 }
@@ -519,6 +822,15 @@ pub struct SayPill {
     pub look: String,
     /// how long it stays, ms (the usual if 0; 1.5 to 12 s)
     pub ms: u64,
+    /// a name of its own: one with the same key replaces the one that waits, and [`Reply::cancel`] takes it away
+    pub key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<Tile>,
+    pub badges: Vec<Badge>,
+    /// "", "waiting" or "finished": the glow, and an icon at the right
+    pub tone: String,
+    /// what pressing it asks of the module (an `action` event, the user's: what it answers is shown whatever do not disturb says)
+    pub press: String,
 }
 
 impl Say {
@@ -534,6 +846,22 @@ impl Say {
     pub fn big(mut self) -> Self {
         if let Some(p) = self.pill.as_mut() {
             p.look = "big".into();
+        }
+        self
+    }
+    /// ... with a name of its own, a tile, small icons at the right, how it stands, and what pressing it does
+    pub fn keyed(mut self, key: impl Into<String>, tone: impl Into<String>, press: impl Into<String>) -> Self {
+        if let Some(p) = self.pill.as_mut() {
+            p.key = key.into();
+            p.tone = tone.into();
+            p.press = press.into();
+        }
+        self
+    }
+    pub fn with_tile(mut self, tile: Tile, badges: Vec<Badge>) -> Self {
+        if let Some(p) = self.pill.as_mut() {
+            p.tile = Some(tile);
+            p.badges = badges;
         }
         self
     }
@@ -793,9 +1121,59 @@ pub struct Reply {
     more: Option<Vec<Card>>,
     widgets: Vec<(String, Blocks, Blocks)>,
     pane: Option<Option<(String, Blocks, bool)>>,
+    watch: Option<Vec<u32>>,
+    reveal: Option<String>,
+    fetch: Vec<Value>,
+    open: Option<String>,
+    focus: Option<(Option<String>, Option<String>)>,
+    cancel: Vec<String>,
+    browser: Option<Value>,
 }
 
 impl Reply {
+    /// Watch these programs (their process ids, at most 4): each second the module is told what they use, in an `event ==
+    /// "usage"`. An empty list stops it. The last one asked for is kept. Needs the `usage` permission.
+    pub fn watch(mut self, pids: &[u32]) -> Self {
+        self.watch = Some(pids.to_vec());
+        self
+    }
+    /// Ask the host for an address (up to 2 in a reply) and be told what came back, in an `event == "fetched"` with this `id`.
+    /// Only a host the manifest names in `permissions.net` is reached, over https; a redirect is not followed. `method` is "GET"
+    /// or "POST" (with a `body`).
+    pub fn fetch(mut self, id: &str, method: &str, url: &str, headers: &[(&str, &str)], body: Option<&str>) -> Self {
+        let h: serde_json::Map<String, Value> = headers.iter().map(|(k, v)| (k.to_string(), json!(v))).collect();
+        self.fetch.push(json!({ "id": id, "method": method, "url": url, "headers": h, "body": body }));
+        self
+    }
+    /// Open a link now (the browser, an app): it has to start with one of the prefixes the manifest names in `permissions.open`.
+    pub fn open(mut self, url: impl Into<String>) -> Self {
+        self.open = Some(url.into());
+        self
+    }
+    /// Bring a window to the front: the program (its path, as a window told it) and a word of its title. Needs `programs`.
+    pub fn focus(mut self, exe: Option<&str>, title: Option<&str>) -> Self {
+        self.focus = Some((exe.map(str::to_string), title.map(str::to_string)));
+        self
+    }
+    /// Take back the briefs that have these keys ([`Say::pill`] with [`SayPill::key`]).
+    pub fn cancel(mut self, keys: &[&str]) -> Self {
+        self.cancel = keys.iter().map(|k| k.to_string()).collect();
+        self
+    }
+    /// What it asks of the browser extension (needs `browser`): `config` (`{ hosts, hostWords, titleWords, safe, images }`: the sites
+    /// that are never read, the buttons that may be pressed, whether pictures are sent), `watch` (the pages to be told of, at most 8:
+    /// `(browser, title)`), a button to `press` and a tab to send on (`go`); the last two are answered by a `browser_done` event with
+    /// their `id`. Without a `config` the extensions read nothing.
+    pub fn browser(mut self, ask: Value) -> Self {
+        self.browser = Some(ask);
+        self
+    }
+    /// Show a finished download in its folder: `path` is the [`Ended::path`] the module was told of. Needs the `downloads`
+    /// permission.
+    pub fn reveal(mut self, path: impl Into<String>) -> Self {
+        self.reveal = Some(path.into());
+        self
+    }
     /// Open a window for the plugin (or show the next step of the one it has). See [`Modal`].
     pub fn modal(m: Modal) -> Self {
         Reply { modal: Some(Some(m)), ..Reply::default() }
@@ -1035,6 +1413,27 @@ impl Reply {
         }
         if let Some(ms) = self.wake_ms {
             o.insert("wake_ms".into(), json!(ms));
+        }
+        if let Some(w) = &self.watch {
+            o.insert("watch".into(), json!(w));
+        }
+        if let Some(r) = &self.reveal {
+            o.insert("reveal".into(), json!(r));
+        }
+        if !self.fetch.is_empty() {
+            o.insert("fetch".into(), Value::Array(self.fetch.clone()));
+        }
+        if let Some(u) = &self.open {
+            o.insert("open".into(), json!(u));
+        }
+        if let Some((exe, title)) = &self.focus {
+            o.insert("focus".into(), json!({ "exe": exe, "title": title }));
+        }
+        if !self.cancel.is_empty() {
+            o.insert("cancel".into(), json!(self.cancel));
+        }
+        if let Some(b) = &self.browser {
+            o.insert("browser".into(), b.clone());
         }
         if let Some((a, s, v)) = &self.media {
             o.insert("media".into(), json!({ "action": a, "source": s, "value": v }));

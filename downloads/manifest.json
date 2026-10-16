@@ -1,0 +1,11 @@
+{
+  "id": "downloads",
+  "name": "Downloads",
+  "description": "What your browsers, Steam and qBittorrent are downloading right now.",
+  "version": "2.0.0",
+  "kind": "wasm",
+  "module": "downloads.wasm",
+  "default_on": false,
+  "permissions": { "downloads": true },
+  "source": { "when": "always" }
+}

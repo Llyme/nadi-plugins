@@ -4,6 +4,7 @@
   "description": "Your Claude Code sessions as cards, a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits you have used.",
   "version": "3.0.0",
   "kind": "bundle",
+  "replaces": ["claude-code", "claude-usage"],
   "default_on": false,
   "banners": true,
   "settings": {

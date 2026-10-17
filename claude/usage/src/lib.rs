@@ -280,27 +280,27 @@ fn failed(st: &mut State, msg: impl Into<String>, needs_login: bool) {
 
 fn render(st: &State, now: u64, wanted: bool, act: Act) -> Reply {
     let s = &st.snap;
-    let mut bars: Vec<(&str, f32, &str, String)> = Vec::new();
+    let mut bars: Vec<(&str, f32, &str, String, String)> = Vec::new();
     let mut rings: Vec<Ring> = Vec::new();
     if wanted && s.available {
         for (label, own, id, w) in [("5H", FIVE, "five_hour", &s.five), ("7D", SEVEN, "seven_day", &s.seven)] {
             let Some(pct) = w.as_ref().and_then(|w| w.pct) else { continue };
             let back = reset_in(&w.as_ref().and_then(|w| w.resets_at.clone()), now);
-            let words = if back.is_empty() { format!("{}%", pct.round() as i64) } else { format!("{}% · back in {back}", pct.round() as i64) };
-            bars.push((label, (pct / 100.0).clamp(0.0, 1.0) as f32, bar_color(pct, own), words));
+            let under = if back.is_empty() { String::new() } else { format!("Back in {back}") };
+            bars.push((label, (pct / 100.0).clamp(0.0, 1.0) as f32, bar_color(pct, own), format!("{}%", pct.round() as i64), under));
             let status = s.error.as_deref().map(|e| format!("Not up to date: {e}")).unwrap_or_else(|| "Click to refresh".into());
             let resets = if back.is_empty() { String::new() } else { format!("Resets in {back} · ") };
             rings.push(Ring::new(id, pct as f32, format!("Claude {} · {}%\n{resets}{status}", label.to_lowercase(), pct.round() as i64), RING).in_tray());
         }
     }
-    let plain: Vec<(&str, f32, &str, &str)> = bars.iter().map(|(l, p, c, _)| (*l, *p, *c, "")).collect();
-    let in_tip: Vec<(&str, f32, &str, &str)> = bars.iter().map(|(l, p, c, w)| (*l, *p, *c, w.as_str())).collect();
+    let plain: Vec<(&str, f32, &str, &str)> = bars.iter().map(|(l, p, c, _, _)| (*l, *p, *c, "")).collect();
+    let in_tip: Vec<(&str, f32, &str, &str, &str)> = bars.iter().map(|(l, p, c, w, u)| (*l, *p, *c, w.as_str(), u.as_str())).collect();
     let foot = s.error.as_deref().map(|e| format!("Not up to date: {e}")).unwrap_or_else(|| "Click to refresh".into());
     // (the bars take no room until there is something to show: no sign-in, no bars)
     let mut reply = if plain.is_empty() {
         Reply::widget("bars", Blocks::new(), Blocks::new())
     } else {
-        Reply::widget("bars", Blocks::new().bars(&plain), Blocks::new().text("title", "Claude usage").bars(&in_tip).text("muted", foot))
+        Reply::widget("bars", Blocks::new().bars(&plain), Blocks::new().bars_with_sub(&in_tip).text("muted", foot))
     };
     reply = reply.rings(rings);
     // the line under the plugin's name
@@ -625,7 +625,8 @@ mod tests {
         let bars = r["widgets"]["bars"]["blocks"][0]["bars"].as_array().unwrap();
         assert_eq!((bars[0]["label"].as_str(), bars[0]["color"].as_str()), (Some("5H"), Some(FIVE)));
         assert_eq!(bars[1]["part"].as_f64().map(|p| (p * 100.0).round()), Some(18.0));
-        assert_eq!(r["widgets"]["bars"]["tip"][1]["bars"][0]["text"], "42% · back in 3h 59m");
+        assert_eq!(r["widgets"]["bars"]["tip"][0]["bars"][0]["text"], "42%");
+        assert_eq!(r["widgets"]["bars"]["tip"][0]["bars"][0]["sub"], "Back in 3h 59m");
         let rings = r["rings"].as_array().unwrap();
         assert_eq!((rings[0]["id"].as_str(), rings[0]["start"].as_bool()), (Some("five_hour"), Some(false)));
         assert_eq!(rings[0]["tip"], "Claude 5h · 42%\nResets in 3h 59m · Click to refresh");

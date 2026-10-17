@@ -33,10 +33,7 @@ fn handle(ev: &Event) -> Reply {
     let bars: Vec<(&str, f32, &str, &str)> = meters.iter().map(|(l, p, c)| (*l, p / 100.0, tone(*p, c), "")).collect();
     let words: Vec<String> = meters.iter().map(|(_, p, _)| format!("{}%", p.round() as i32)).collect();
     let in_tip: Vec<(&str, f32, &str, &str)> = meters.iter().zip(&words).map(|((l, p, c), w)| (*l, p / 100.0, tone(*p, c), w.as_str())).collect();
-    let mut tip = Blocks::new().text("title", "System").bars(&in_tip);
-    if s.ram_total_gb > 0.0 {
-        tip = tip.text("muted", format!("Memory {:.1} of {:.1} GB", s.ram_used_gb, s.ram_total_gb));
-    }
+    let tip = Blocks::new().bars(&in_tip);
     let mut rings = vec![
         Ring::new("cpu", s.cpu, format!("CPU · {}%", s.cpu.round() as i32), CPU).in_tray(),
         Ring::new("ram", s.ram, format!("RAM · {}%\n{:.1} / {:.1} GB", s.ram.round() as i32, s.ram_used_gb, s.ram_total_gb), RAM).in_tray(),
@@ -65,8 +62,8 @@ mod tests {
         assert_eq!((bars[0]["label"].as_str(), bars[0]["color"].as_str()), (Some("CPU"), Some("#5AC8E6")));
         assert_eq!(bars[1]["part"].as_f64().map(|p| (p * 100.0).round()), Some(61.0));
         let tip = &r["widgets"]["bars"]["tip"];
-        assert_eq!(tip[1]["bars"][1]["text"], "61%");
-        assert_eq!(tip[2]["text"], "Memory 9.8 of 16.0 GB");
+        assert_eq!(tip.as_array().unwrap().len(), 1);
+        assert_eq!(tip[0]["bars"][1]["text"], "61%");
         let rings = r["rings"].as_array().unwrap();
         assert_eq!(rings.len(), 3);
         assert_eq!(rings[0]["start"], false);

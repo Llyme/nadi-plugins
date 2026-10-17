@@ -969,6 +969,11 @@ impl Blocks {
         self.0.push(json!({ "bars": items.iter().map(|(l, p, c, t)| json!({ "label": l, "part": p, "color": c, "text": t })).collect::<Vec<_>>() }));
         self
     }
+    /// the same bars, each with a few words under it (in a tooltip; a widget shows the bars only)
+    pub fn bars_with_sub(mut self, items: &[(&str, f32, &str, &str, &str)]) -> Self {
+        self.0.push(json!({ "bars": items.iter().map(|(l, p, c, t, s)| json!({ "label": l, "part": p, "color": c, "text": t, "sub": s })).collect::<Vec<_>>() }));
+        self
+    }
     /// a thin bar, 0 to 1, with a few words at its right
     pub fn bar(mut self, part: f32, text: &str) -> Self {
         self.0.push(json!({ "bar": part, "text": text }));

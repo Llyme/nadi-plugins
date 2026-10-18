@@ -2,7 +2,7 @@
   "id": "eyes",
   "name": "Eyes",
   "description": "The two eyes of the island: they blink, look at the cursor, squash and stretch as it moves, glance around when it rests, and show moods. They can bounce to the beat of what you play, and send a ripple out for each hit of the bass.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "kind": "face",
   "default_on": false,
   "permissions": { "audio": true, "cursor": true },

@@ -2,8 +2,9 @@
   "id": "games",
   "name": "Games",
   "description": "The game you are playing, for how long, and how it runs: frames per second, and what it uses of the CPU, the memory and the graphics card.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "wasm",
+  "tile": {"name": "Games", "icon": "gamepad", "tint": "#3ea66f", "sizes": ["small", "wide"], "idle": "no game running"},
   "module": "games.wasm",
   "default_on": false,
   "permissions": {

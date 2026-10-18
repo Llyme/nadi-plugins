@@ -438,7 +438,7 @@ fn card_of(st: &State, ev: &Event) -> (Option<Card>, Vec<Card>) {
             if let Some(icon) = st.icons.get(&r.path) {
                 card = card.tile(icon.clone());
             }
-            card = card.sub(if session { "Editing" } else { "Not at the keyboard" });
+            card = card.sub(if session { "Editing" } else { "Not at the keyboard" }).glance(duration(now.saturating_sub(r.started_at)), project.clone());
             // what is in front: the file, in its language
             if let Some(file) = &st.coding_file {
                 let language = file.rsplit_once('.').and_then(|(_, ext)| {
@@ -486,7 +486,7 @@ fn card_of(st: &State, ev: &Event) -> (Option<Card>, Vec<Card>) {
             if let Some(icon) = st.icons.get(&r.path) {
                 card = card.tile(icon.clone());
             }
-            cards.push(card.peek(duration(now.saturating_sub(r.started_at))));
+            cards.push(card.peek(duration(now.saturating_sub(r.started_at))).glance(duration(now.saturating_sub(r.started_at)), label.to_string()));
         }
     }
     let mut it = cards.into_iter();

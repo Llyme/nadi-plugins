@@ -2,8 +2,9 @@
   "id": "work",
   "name": "Work",
   "description": "What you work on: your editor, your hours, and a pill for the session you are in.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "wasm",
+  "tile": {"name": "Work", "icon": "code", "tint": "#6d6d78", "sizes": ["small", "wide"], "idle": "not working"},
   "module": "work.wasm",
   "default_on": false,
   "permissions": {

@@ -454,7 +454,17 @@ pub struct Card {
     /// an action the module is called with when the card's icon is pressed (go to the thing the card is about)
     #[serde(skip_serializing_if = "String::is_empty")]
     pub focus: String,
+    /// what the plugin's tile says at a glance: a big word or number and a few words under it
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub glance: Option<Glance>,
     pub body: Vec<Value>,
+}
+
+/// What a tile says at a glance ("1" and "needs you", "144" and "fps"): the big word is cut at 12 characters, the caption at 40.
+#[derive(Serialize, Default, Clone, Debug)]
+pub struct Glance {
+    pub big: String,
+    pub caption: String,
 }
 
 /// A letter in a colour with a ring around it (how full something is): what a card, a pill or a brief shows in place of an icon.
@@ -604,6 +614,11 @@ impl Card {
     }
     pub fn badges(mut self, items: Vec<Badge>) -> Self {
         self.badges = items;
+        self
+    }
+    /// what the plugin's tile says at a glance (see [`Glance`]); without it the tile shows the card's title and second line
+    pub fn glance(mut self, big: impl Into<String>, caption: impl Into<String>) -> Self {
+        self.glance = Some(Glance { big: big.into(), caption: caption.into() });
         self
     }
     /// pressing the card's icon calls the module with this action
@@ -978,6 +993,12 @@ impl Blocks {
     /// a few thin bars stacked, each `(label, part 0 to 1, colour "#rrggbb", words at its right)`; the words show in a tooltip
     pub fn bars(mut self, items: &[(&str, f32, &str, &str)]) -> Self {
         self.0.push(json!({ "bars": items.iter().map(|(l, p, c, t)| json!({ "label": l, "part": p, "color": c, "text": t })).collect::<Vec<_>>() }));
+        self
+    }
+    /// the same meters as circles, each a small ring with its label inside (`(label, part 0 to 1, colour "#rrggbb", words)`; the
+    /// words show in a tooltip)
+    pub fn rings(mut self, items: &[(&str, f32, &str, &str)]) -> Self {
+        self.0.push(json!({ "rings": items.iter().map(|(l, p, c, t)| json!({ "label": l, "part": p, "color": c, "text": t })).collect::<Vec<_>>() }));
         self
     }
     /// the same bars, each with a few words under it (in a tooltip; a widget shows the bars only)

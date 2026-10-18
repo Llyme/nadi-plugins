@@ -213,6 +213,12 @@ fn reply_for(st: &State) -> Reply {
     };
     let mut card = Card::new().icon("download").rank(CARD_RANK).title("Downloads").sub(sub);
     card = card.peek(if active.is_empty() { format!("{} done", done.len()) } else { speed_text(speed) });
+    // (what its tile says: how far the first one is, and how fast; or how many are done)
+    card = match active.first().and_then(|i| progress(i)) {
+        Some(p) if !active.is_empty() => card.glance(format!("{}%", (p * 100.0).round() as i32), speed_text(speed)),
+        _ if !active.is_empty() => card.glance(active.len().to_string(), "downloading"),
+        _ => card.glance(done.len().to_string(), "done"),
+    };
 
     // the combined speed over the last minute; the top of the graph is the fastest of it
     let top = st.speeds.iter().cloned().fold(0.0, f64::max);

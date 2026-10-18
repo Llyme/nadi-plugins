@@ -298,9 +298,11 @@ fn render(st: &State, now: u64, wanted: bool, act: Act) -> Reply {
     let foot = s.error.as_deref().map(|e| format!("Not up to date: {e}")).unwrap_or_else(|| "Click to refresh".into());
     // (the bars take no room until there is something to show: no sign-in, no bars)
     let mut reply = if plain.is_empty() {
-        Reply::widget("bars", Blocks::new(), Blocks::new())
+        Reply::widget("bars", Blocks::new(), Blocks::new()).with_widget("rings", Blocks::new(), Blocks::new())
     } else {
-        Reply::widget("bars", Blocks::new().bars(&plain), Blocks::new().bars_with_sub(&in_tip).text("muted", foot))
+        // (the same two numbers twice: as thin bars, and as circles)
+        Reply::widget("bars", Blocks::new().bars(&plain), Blocks::new().bars_with_sub(&in_tip).text("muted", foot.clone()))
+            .with_widget("rings", Blocks::new().rings(&plain), Blocks::new().bars_with_sub(&in_tip).text("muted", foot))
     };
     reply = reply.rings(rings);
     // the line under the plugin's name
@@ -626,6 +628,8 @@ mod tests {
         assert_eq!((bars[0]["label"].as_str(), bars[0]["color"].as_str()), (Some("5H"), Some(FIVE)));
         assert_eq!(bars[1]["part"].as_f64().map(|p| (p * 100.0).round()), Some(18.0));
         assert_eq!(r["widgets"]["bars"]["tip"][0]["bars"][0]["text"], "42%");
+        assert_eq!(r["widgets"]["rings"]["blocks"][0]["rings"].as_array().unwrap().len(), 2);
+        assert_eq!(r["widgets"]["rings"]["blocks"][0]["rings"][0]["label"], "5H");
         assert_eq!(r["widgets"]["bars"]["tip"][0]["bars"][0]["sub"], "Back in 3h 59m");
         let rings = r["rings"].as_array().unwrap();
         assert_eq!((rings[0]["id"].as_str(), rings[0]["start"].as_bool()), (Some("five_hour"), Some(false)));

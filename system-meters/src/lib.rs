@@ -1,5 +1,6 @@
 //! System meters: how busy the CPU, the memory and the graphics card are. A widget for the head with three thin bars stacked
-//! (and the numbers in its tooltip), and a ring for each, which waits in the tray of edit mode.
+//! (and the numbers in its tooltip), the same three as small circles (a widget of its own), and a ring for each, which waits
+//! in the tray of the editor.
 //!
 //! It reads the `system` sensor, which the island sends every 2 seconds, and answers each reading with what to draw.
 
@@ -34,6 +35,7 @@ fn handle(ev: &Event) -> Reply {
     let words: Vec<String> = meters.iter().map(|(_, p, _)| format!("{}%", p.round() as i32)).collect();
     let in_tip: Vec<(&str, f32, &str, &str)> = meters.iter().zip(&words).map(|((l, p, c), w)| (*l, p / 100.0, tone(*p, c), w.as_str())).collect();
     let tip = Blocks::new().bars(&in_tip);
+    let tip_of_rings = Blocks::new().bars(&in_tip);
     let mut rings = vec![
         Ring::new("cpu", s.cpu, format!("CPU · {}%", s.cpu.round() as i32), CPU).in_tray(),
         Ring::new("ram", s.ram, format!("RAM · {}%\n{:.1} / {:.1} GB", s.ram.round() as i32, s.ram_used_gb, s.ram_total_gb), RAM).in_tray(),
@@ -41,7 +43,9 @@ fn handle(ev: &Event) -> Reply {
     if let Some(g) = s.gpu {
         rings.push(Ring::new("gpu", g, format!("GPU · {}%", g.round() as i32), GPU).in_tray());
     }
-    Reply::widget("bars", Blocks::new().bars(&bars), tip).rings(rings)
+    // (the same numbers twice: as thin bars, and as circles)
+    let circles: Vec<(&str, f32, &str, &str)> = bars.iter().map(|(l, p, c, _)| (*l, *p, *c, "")).collect();
+    Reply::widget("bars", Blocks::new().bars(&bars), tip).with_widget("rings", Blocks::new().rings(&circles), tip_of_rings).rings(rings)
 }
 
 plugin!(handle);
@@ -59,6 +63,10 @@ mod tests {
         let r = handle(&reading(34.0, 61.0, Some(22.0))).to_json();
         let bars = &r["widgets"]["bars"]["blocks"][0]["bars"];
         assert_eq!(bars.as_array().unwrap().len(), 3);
+        // the same three numbers, as circles
+        let circles = &r["widgets"]["rings"]["blocks"][0]["rings"];
+        assert_eq!(circles.as_array().unwrap().len(), 3);
+        assert_eq!(circles[0]["label"], "CPU");
         assert_eq!((bars[0]["label"].as_str(), bars[0]["color"].as_str()), (Some("CPU"), Some("#5AC8E6")));
         assert_eq!(bars[1]["part"].as_f64().map(|p| (p * 100.0).round()), Some(61.0));
         let tip = &r["widgets"]["bars"]["tip"];

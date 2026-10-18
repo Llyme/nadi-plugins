@@ -105,7 +105,7 @@ fn card_of(g: &Game, now: u64, rank: i32) -> Card {
     let mut card = Card::new().icon("gamepad").rank(rank).title(g.name.clone()).sub(format!("Playing for {}", duration(now.saturating_sub(g.since))));
     let Some(u) = &g.usage else { return card };
     if let Some(fps) = u.fps {
-        card = card.peek(format!("{} FPS", fps.round() as i64));
+        card = card.peek(format!("{} FPS", fps.round() as i64)).glance(format!("{}", fps.round() as i64), format!("fps · {}", g.name));
         let ms = 1000.0 / fps.max(1.0);
         card = card.facts(&[
             ("FPS", format!("{}", fps.round() as i64)),
@@ -118,7 +118,7 @@ fn card_of(g: &Game, now: u64, rank: i32) -> Card {
             card = card.graph(&ms, GRAPH_MAX_MS, &GRAPH_MARKS);
         }
     } else if let Some(gpu) = u.gpu {
-        card = card.peek(format!("GPU {}", pct(gpu)));
+        card = card.peek(format!("GPU {}", pct(gpu))).glance(pct(gpu), format!("GPU · {}", g.name));
     }
     // the meters: the game's own share of each
     let mut rows: Vec<(String, String, Option<f32>)> = Vec::new();

@@ -218,7 +218,10 @@ fn reply_cards(st: &State, now: u64) -> Reply {
     if cards.is_empty() {
         return Reply::clear().more_cards(Vec::new());
     }
-    let first = cards.remove(0);
+    // (what its tile says: how many need you, else how many there are)
+    let waiting = st.sessions.iter().filter(|s| state_of(s, now, &st.dismissed) == "waiting").count();
+    let (big, caption) = if waiting > 0 { (waiting, "needs you") } else if cards.len() == 1 { (1, "session") } else { (cards.len(), "sessions") };
+    let first = cards.remove(0).glance(big.to_string(), caption);
     Reply::card(first).more_cards(cards)
 }
 

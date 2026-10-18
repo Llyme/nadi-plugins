@@ -1,14 +1,16 @@
 {
   "id": "system-meters",
   "name": "System meters",
-  "description": "How busy the CPU, the memory and the graphics card are: three thin bars in the head, with the numbers in a tooltip, and a ring for each that waits in the tray.",
-  "version": "2.0.0",
+  "description": "How busy the CPU, the memory and the graphics card are: three thin bars in the head, or three small circles, with the numbers in a tooltip, and a ring for each that waits in the tray.",
+  "version": "2.1.0",
   "kind": "wasm",
+  "tile": {"name": "System", "icon": "sliders", "tint": "#5ac8e6", "sizes": ["wide", "small"], "widget": "rings", "idle": "Right now"},
   "module": "system-meters.wasm",
   "default_on": false,
   "permissions": { "system": true },
   "source": { "when": "always" },
   "widgets": [
-    { "id": "bars", "name": "Bars", "place": "right", "rank": 50, "width": 76 }
+    { "id": "bars", "name": "Bars", "place": "right", "rank": 50, "width": 76 },
+    { "id": "rings", "name": "Circles", "place": "right", "rank": 52, "width": 100, "start": false }
   ]
 }

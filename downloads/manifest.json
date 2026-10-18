@@ -2,8 +2,9 @@
   "id": "downloads",
   "name": "Downloads",
   "description": "What your browsers, Steam and qBittorrent are downloading right now.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "wasm",
+  "tile": {"name": "Downloads", "icon": "download", "tint": "#4f8ff0", "sizes": ["small", "wide"], "idle": "none right now"},
   "module": "downloads.wasm",
   "default_on": false,
   "permissions": {

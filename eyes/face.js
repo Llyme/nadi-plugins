@@ -338,15 +338,14 @@
 		var w = innerWidth;
 		var h = innerHeight;
 		var size = Math.max(w, h);
-		// where the eyes sit inside the island: the middle, or (in the hub) where their widget is, whichever row and place
+		// where the eyes sit inside the island: the middle, or where their widget is (in the hub, whichever row and place; at
+		// rest, whichever section the user put it in). The island says where it is only while it is on show.
 		var cx = w / 2;
 		var cy = h / 2;
-		if (view === "hub") {
-			for (var i0 = 0; i0 < peers.length; i0++) {
-				if (peers[i0].face === "head") {
-					cx = peers[i0].x + peers[i0].w / 2;
-					cy = peers[i0].y + peers[i0].h / 2;
-				}
+		for (var i0 = 0; i0 < peers.length; i0++) {
+			if (peers[i0].face === "head") {
+				cx = peers[i0].x + peers[i0].w / 2;
+				cy = peers[i0].y + peers[i0].h / 2;
 			}
 		}
 		ctx.lineWidth = 0.7; // hairline, always: only the fade changes
@@ -433,9 +432,12 @@
 		if (view === "idle") {
 			updateMood(T);
 			tickBlink(T);
-			gazeOff = { x: 0, y: 0 };
+			// where the eyes sit: the middle of the island, or the section of the resting island that the user put them in
+			var spot = null;
+			for (var j = 0; j < peers.length; j++) if (peers[j].face === "head") spot = peers[j];
+			gazeOff = spot ? { x: self.x, y: self.y } : { x: 0, y: 0 };
 			// breathing: the eyes drift up and down a hair, on a slow cycle
-			paintEyesAt(ctx, w / 2, h / 2 + Math.sin((T / 3600) * Math.PI * 2) * 0.55, 1);
+			paintEyesAt(ctx, spot ? spot.x + spot.w / 2 : w / 2, (spot ? spot.y + spot.h / 2 : h / 2) + Math.sin((T / 3600) * Math.PI * 2) * 0.55, 1);
 		} else if (view === "hub") {
 			// the eyes of the header: where their widget is, whichever row and place it was put in
 			var head = null;

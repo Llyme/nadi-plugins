@@ -4,7 +4,7 @@
   "description": "A calendar for the island: the events of a calendar link (.ics: Google Calendar, Outlook, iCloud), the date and time in the head, a month view you open from it, the next events on a card, and a banner shortly before one starts.",
   "version": "4.1.0",
   "kind": "wasm",
-  "tile": {"name": "Today", "icon": "calendar", "tint": "#4f8ff0", "sizes": ["wide", "small"], "idle": "No events"},
+  "tile": {"name": "Today", "icon": "calendar", "tint": "#4f8ff0", "sizes": ["wide", "small"], "idle": "No events", "look": "date"},
   "module": "ics-calendar.wasm",
   "default_on": false,
   "banners": true,

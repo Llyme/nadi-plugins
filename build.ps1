@@ -16,6 +16,8 @@ try {
     Copy-Item (Join-Path $dir.FullName "manifest.json") $to
     # (the scripts of its faces)
     Get-ChildItem $dir.FullName -Filter *.js -File | ForEach-Object { Copy-Item $_.FullName $to }
+    # (the pictures of its tile)
+    Get-ChildItem $dir.FullName -File | Where-Object { $_.Extension -in ".gif", ".png", ".webp", ".jpg", ".jpeg" } | ForEach-Object { Copy-Item $_.FullName $to }
     $manifest = Get-Content (Join-Path $dir.FullName "manifest.json") -Raw | ConvertFrom-Json
     if ($manifest.kind -eq "wasm") {
       $built = Join-Path $out (($dir.Name -replace "-", "_") + ".wasm")

@@ -25,5 +25,37 @@
       "git -C * ls-files --others --exclude-standard"
     ]
   },
-  "source": { "when": "always" }
+  "source": {
+    "when": "always"
+  },
+  "widgets": [
+    {
+      "id": "session",
+      "name": "Session",
+      "place": "left",
+      "rank": 40,
+      "width": 110,
+      "start": false
+    },
+    {
+      "id": "hours",
+      "name": "Time in it",
+      "place": "right",
+      "rank": 41,
+      "width": 56,
+      "start": false
+    }
+  ],
+  "rests": [
+    {
+      "id": "session",
+      "name": "Work",
+      "description": "What you are working on at the left, for how long at the right.",
+      "when": "While you are in a work session",
+      "priority": 30,
+      "left": "session",
+      "center": "",
+      "right": "hours"
+    }
+  ]
 }

@@ -578,6 +578,13 @@ fn look(st: &mut State, ev: &Event) -> Reply {
         Some(p) => r.pill(p),
         None => r.no_pill(),
     };
+    // the resting island (its manifest's `rests`): the kind of work and the program at the left, how long at the right
+    let session = st.confirmed.as_deref().filter(|c| !NON_SESSION.contains(c) && *c != "browsing");
+    let (what, how_long) = match session {
+        Some(c) => (Blocks::new().item("", glyph_for(c), label_for(c), &st.confirmed_app), Blocks::new().text("", duration(now.saturating_sub(st.confirmed_since)))),
+        None => (Blocks::new(), Blocks::new()),
+    };
+    r = r.with_widget("session", what, Blocks::new()).with_widget("hours", how_long, Blocks::new()).rest(if session.is_some() { &["session"] } else { &[] });
 
     // git, for the project in the editor: only while the island is open (nobody sees it otherwise)
     if ev.hub && !st.active_project.is_empty() && st.git.pending == 0 && now.saturating_sub(st.git.at) >= GIT_EVERY_MS {
@@ -692,6 +699,9 @@ mod tests {
         assert_eq!(r["pill"]["title"], "Coding");
         assert_eq!(r["card"]["title"], "proj");
         assert_eq!(r["card"]["id"], "coding");
+        // the resting island is on for as long as the session is
+        assert_eq!(r["rest"], json!(["session"]));
+        assert_eq!(r["widgets"]["session"]["blocks"][0]["item"]["text"], "Coding");
         // gone idle: the session holds for the grace, then ends
         let r = handle(&look_at(60_000, code(), 200.0, false)).to_json();
         assert_eq!(r["pill"]["title"], "Coding", "a glance away does not end it");

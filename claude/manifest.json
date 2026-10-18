@@ -4,7 +4,10 @@
   "description": "Your Claude Code sessions as cards, a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits you have used.",
   "version": "3.0.0",
   "kind": "bundle",
-  "replaces": ["claude-code", "claude-usage"],
+  "replaces": [
+    "claude-code",
+    "claude-usage"
+  ],
   "default_on": false,
   "banners": true,
   "settings": {
@@ -29,6 +32,15 @@
     }
   ],
   "widgets": [
+    {
+      "part": "sessions",
+      "id": "needs",
+      "name": "Needs you",
+      "place": "left",
+      "rank": 39,
+      "width": 90,
+      "start": false
+    },
     {
       "part": "usage",
       "id": "bars",
@@ -65,6 +77,18 @@
         ],
         "storage": true
       }
+    }
+  ],
+  "rests": [
+    {
+      "id": "needs",
+      "name": "Claude",
+      "description": "Which session needs you, and how much of your limits is used.",
+      "when": "While a session needs you",
+      "priority": 70,
+      "left": "claude-sessions:needs",
+      "center": "eyes:head",
+      "right": "claude-usage:bars"
     }
   ]
 }

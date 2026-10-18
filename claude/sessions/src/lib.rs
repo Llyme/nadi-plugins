@@ -316,6 +316,14 @@ fn handle(ev: &Event) -> Reply {
                 st.sessions = once_each(&ev.claude);
                 let (says, cancel) = alerts(&mut st, ev.hub, ev.setting_bool("alerts", true));
                 let mut reply = reply_cards(&st, ev.now);
+                // the resting island (the bundle's `rests`): on while a session needs you, with who at the left
+                let waiting = st.sessions.iter().filter(|s| state_of(s, ev.now, &st.dismissed) == "waiting").count();
+                let needs = match waiting {
+                    0 => Blocks::new(),
+                    1 => Blocks::new().item("", "sparkle", "Needs you", ""),
+                    n => Blocks::new().item("", "sparkle", &format!("{n} need you"), ""),
+                };
+                reply = reply.with_widget("needs", needs, Blocks::new()).rest(if waiting > 0 { &["needs"] } else { &[] });
                 for s in says {
                     reply = reply.say_with(s);
                 }

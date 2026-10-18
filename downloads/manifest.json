@@ -6,6 +6,40 @@
   "kind": "wasm",
   "module": "downloads.wasm",
   "default_on": false,
-  "permissions": { "downloads": true },
-  "source": { "when": "always" }
+  "permissions": {
+    "downloads": true
+  },
+  "source": {
+    "when": "always"
+  },
+  "widgets": [
+    {
+      "id": "file",
+      "name": "File",
+      "place": "left",
+      "rank": 40,
+      "width": 110,
+      "start": false
+    },
+    {
+      "id": "speed",
+      "name": "Speed",
+      "place": "right",
+      "rank": 41,
+      "width": 56,
+      "start": false
+    }
+  ],
+  "rests": [
+    {
+      "id": "downloading",
+      "name": "Downloads",
+      "description": "What is coming down at the left, how fast at the right.",
+      "when": "While something downloads",
+      "priority": 40,
+      "left": "file",
+      "center": "",
+      "right": "speed"
+    }
+  ]
 }

@@ -959,6 +959,17 @@ impl Blocks {
         self.0.push(json!({ "clock": "time", "h24": h24 }));
         self
     }
+    /// a small picture or an icon, with a line of words (and one under it): what a song is, a download. `tile`: a `data:` raster
+    /// picture, `"keep"` for the one this widget showed last, or "" for the `icon` instead.
+    pub fn item(mut self, tile: &str, icon: &str, text: &str, sub: &str) -> Self {
+        self.0.push(json!({ "item": { "tile": tile, "icon": icon, "text": text, "sub": sub } }));
+        self
+    }
+    /// a round button with an icon ("play", "pause", "next"...): a press comes back as an `action` with `id` as `press`
+    pub fn icon_button(mut self, icon: &str, press: &str, label: &str) -> Self {
+        self.0.push(json!({ "icon_button": { "icon": icon, "press": press, "label": label } }));
+        self
+    }
     /// today's date, as the island's clock says it
     pub fn clock_date(mut self) -> Self {
         self.0.push(json!({ "clock": "date" }));
@@ -1133,9 +1144,16 @@ pub struct Reply {
     focus: Option<(Option<String>, Option<String>)>,
     cancel: Vec<String>,
     browser: Option<Value>,
+    rest: Option<Vec<String>>,
 }
 
 impl Reply {
+    /// Which of the resting islands of the manifest (`rests`) are on now: while one is, and the user has not turned it off, the
+    /// collapsed island shows it. An empty list says none is. The last one told stands until the next.
+    pub fn rest(mut self, ids: &[&str]) -> Self {
+        self.rest = Some(ids.iter().map(|s| s.to_string()).collect());
+        self
+    }
     /// Watch these programs (their process ids, at most 4): each second the module is told what they use, in an `event ==
     /// "usage"`. An empty list stops it. The last one asked for is kept. Needs the `usage` permission.
     pub fn watch(mut self, pids: &[u32]) -> Self {
@@ -1424,6 +1442,9 @@ impl Reply {
         }
         if let Some(r) = &self.reveal {
             o.insert("reveal".into(), json!(r));
+        }
+        if let Some(r) = &self.rest {
+            o.insert("rest".into(), json!(r));
         }
         if !self.fetch.is_empty() {
             o.insert("fetch".into(), Value::Array(self.fetch.clone()));

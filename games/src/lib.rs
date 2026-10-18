@@ -137,7 +137,7 @@ fn reply_for(st: &mut State, now: u64) -> Reply {
     let watch: Vec<u32> = st.games.iter().map(|g| g.pid).collect();
     let Some(front) = st.games.first() else {
         st.sent = None;
-        return Reply::clear().more_cards(Vec::new()).no_pill().quiet(false).watch(&[]);
+        return Reply::clear().more_cards(Vec::new()).no_pill().quiet(false).watch(&[]).with_widget("game", Blocks::new(), Blocks::new()).with_widget("fps", Blocks::new(), Blocks::new()).rest(&[]);
     };
     // (the icon goes out once, then "keep")
     let icon = st.icons.get(&front.path).cloned().unwrap_or_default();
@@ -159,12 +159,15 @@ fn reply_for(st: &mut State, now: u64) -> Reply {
     if st.games.len() > 1 {
         right = if right.is_empty() { format!("+{}", st.games.len() - 1) } else { format!("{right} · +{}", st.games.len() - 1) };
     }
+    // the resting island (its manifest's `rests`): the game at the left, its frame rate at the right
+    let game = Blocks::new().item(&image, "gamepad", &front.name, "");
+    let fps = Blocks::new().text("", front.usage.as_ref().and_then(|u| u.fps).map(|f| format!("{} fps", f.round() as i64)).unwrap_or_default());
     let mut pill = Pill::new().icon("gamepad").image(image).title(front.name.clone()).right(right).rank(PILL_RANK).size(320.0, 40.0);
     if let Some(u) = &front.usage {
         let gpu = u.gpu.unwrap_or(0.0);
         pill = pill.bars(&[gpu / 100.0, u.cpu / 100.0, u.ram / 100.0]);
     }
-    Reply::card(card).more_cards(others).pill(pill).quiet(true).watch(&watch)
+    Reply::card(card).more_cards(others).pill(pill).quiet(true).watch(&watch).with_widget("game", game, Blocks::new()).with_widget("fps", fps, Blocks::new()).rest(&["running"])
 }
 
 /// Keep the list of games up to date with the windows on the screens: the ones that cover their screen join, the one in

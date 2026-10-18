@@ -7,5 +7,21 @@
   "module": "now-playing.wasm",
   "default_on": false,
   "permissions": { "media": true, "media_art": true, "media_control": true },
-  "source": { "when": "always" }
+  "source": { "when": "always" },
+  "widgets": [
+    { "id": "song", "name": "Song", "place": "left", "rank": 40, "width": 120, "start": false },
+    { "id": "playpause", "name": "Play / pause", "place": "right", "rank": 41, "width": 30, "interactive": true, "start": false }
+  ],
+  "rests": [
+    {
+      "id": "playing",
+      "name": "Now playing",
+      "description": "The song at the left, play and pause at the right.",
+      "when": "While something plays",
+      "priority": 60,
+      "left": "song",
+      "center": "",
+      "right": "playpause"
+    }
+  ]
 }

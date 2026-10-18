@@ -199,7 +199,7 @@ fn cut(name: &str, n: usize) -> String {
 
 fn reply_for(st: &State) -> Reply {
     if st.items.is_empty() {
-        return Reply::clear();
+        return Reply::clear().with_widget("file", Blocks::new(), Blocks::new()).with_widget("speed", Blocks::new(), Blocks::new()).rest(&[]);
     }
     let mut active: Vec<&Item> = st.items.iter().filter(|i| !i.done).collect();
     active.sort_by_key(|i| i.started);
@@ -235,7 +235,14 @@ fn reply_for(st: &State) -> Reply {
             .collect();
         card = card.buttons(buttons);
     }
-    Reply::card(card)
+    // the resting island (its manifest's `rests`), while something comes down: what, at the left, and how fast, at the right
+    let file = match active.first() {
+        Some(i) => Blocks::new().item("", "download", &cut(&i.name, 28), &i.source),
+        None => Blocks::new(),
+    };
+    let rate = if active.is_empty() { Blocks::new() } else { Blocks::new().text("", speed_text(speed)) };
+    let on: &[&str] = if active.is_empty() { &[] } else { &["downloading"] };
+    Reply::card(card).with_widget("file", file, Blocks::new()).with_widget("speed", rate, Blocks::new()).rest(on)
 }
 
 fn handle(ev: &Event) -> Reply {

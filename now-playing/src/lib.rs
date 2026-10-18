@@ -52,7 +52,7 @@ fn transport(s: &Session) -> Vec<Button> {
 fn reply_for(st: &mut State) -> Reply {
     let Some(s) = primary(&st.sessions).cloned() else {
         st.sent = None;
-        return Reply::clear().no_pill();
+        return Reply::clear().no_pill().with_widget("song", Blocks::new(), Blocks::new()).with_widget("playpause", Blocks::new(), Blocks::new()).rest(&[]);
     };
     // the picture: told with the first reply that has it, then kept
     let image = match st.arts.get(&s.source) {
@@ -76,7 +76,7 @@ fn reply_for(st: &mut State) -> Reply {
         pill = pill.progress(p);
     }
     // the card: the buttons in its header, and under it the seek bar with the jumps at its sides and the speed after them
-    let mut card = Card::new().icon("music").tile(image).rank(CARD_RANK).title(s.title.clone()).sub(s.artist.clone()).controls(transport(&s));
+    let mut card = Card::new().icon("music").tile(image.clone()).rank(CARD_RANK).title(s.title.clone()).sub(s.artist.clone()).controls(transport(&s));
     let mut back: Vec<Button> = Vec::new();
     let mut after: Vec<Button> = Vec::new();
     if s.can_seek {
@@ -100,7 +100,11 @@ fn reply_for(st: &mut State) -> Reply {
     if !others.is_empty() {
         card = card.list(&others);
     }
-    Reply::card(card).pill(pill)
+    // the widgets of the resting island (its manifest's `rests`): the song, and the button; it is on while the music plays
+    let song = Blocks::new().item(&image, "music", &s.title, &s.artist);
+    let button = Blocks::new().icon_button(if s.playing { "pause" } else { "play" }, "playpause", if s.playing { "Pause" } else { "Play" });
+    let on: &[&str] = if s.playing { &["playing"] } else { &[] };
+    Reply::card(card).pill(pill).with_widget("song", song, Blocks::new()).with_widget("playpause", button, Blocks::new()).rest(on)
 }
 
 fn handle(ev: &Event) -> Reply {
@@ -154,6 +158,12 @@ fn handle(ev: &Event) -> Reply {
                     }
                     // the card's tile: the player is brought to the front
                     "focus" => Reply::nothing().media("focus", src),
+                    // the widgets: the button (and a press on the song brings the player to the front)
+                    "widget" => match ev.args["id"].as_str() {
+                        Some("playpause") => Reply::nothing().media("play_pause", src),
+                        Some("song") => Reply::nothing().media("focus", src),
+                        _ => Reply::nothing(),
+                    },
                     _ => Reply::nothing(),
                 }
             }
@@ -203,6 +213,25 @@ mod tests {
         let r = handle(&media(vec![])).to_json();
         assert_eq!(r["pill"], Value::Null);
         assert_eq!(r["card"], Value::Null);
+    }
+
+    #[test]
+    fn the_resting_island_is_on_while_the_music_plays() {
+        STATE.with(|s| *s.borrow_mut() = State::default());
+        let r = handle(&media(vec![session("b", "Playing", true)])).to_json();
+        assert_eq!(r["rest"], json!(["playing"]));
+        assert_eq!(r["widgets"]["song"]["blocks"][0]["item"]["text"], "Playing");
+        assert_eq!(r["widgets"]["song"]["blocks"][0]["item"]["tile"], "data:image/png;base64,AAAA");
+        assert_eq!(r["widgets"]["playpause"]["blocks"][0]["icon_button"]["icon"], "pause");
+        // paused: it is not on, and the button offers play
+        let r = handle(&media(vec![session("b", "Playing", false)])).to_json();
+        assert_eq!(r["rest"], json!([]));
+        assert_eq!(r["widgets"]["playpause"]["blocks"][0]["icon_button"]["icon"], "play");
+        // the button presses the player
+        assert_eq!(handle(&action("widget", json!({ "id": "playpause" }))).to_json()["media"]["action"], "play_pause");
+        // gone: nothing is on
+        let r = handle(&media(vec![])).to_json();
+        assert_eq!(r["rest"], json!([]));
     }
 
     #[test]

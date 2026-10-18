@@ -6,6 +6,42 @@
   "kind": "wasm",
   "module": "games.wasm",
   "default_on": false,
-  "permissions": { "processes": true, "programs": true, "usage": true },
-  "source": { "when": "always" }
+  "permissions": {
+    "processes": true,
+    "programs": true,
+    "usage": true
+  },
+  "source": {
+    "when": "always"
+  },
+  "widgets": [
+    {
+      "id": "game",
+      "name": "Game",
+      "place": "left",
+      "rank": 40,
+      "width": 110,
+      "start": false
+    },
+    {
+      "id": "fps",
+      "name": "Frame rate",
+      "place": "right",
+      "rank": 41,
+      "width": 56,
+      "start": false
+    }
+  ],
+  "rests": [
+    {
+      "id": "running",
+      "name": "Games",
+      "description": "The game at the left, its frame rate at the right.",
+      "when": "While a game runs",
+      "priority": 50,
+      "left": "game",
+      "center": "",
+      "right": "fps"
+    }
+  ]
 }

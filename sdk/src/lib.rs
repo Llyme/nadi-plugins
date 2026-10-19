@@ -71,6 +71,8 @@ pub struct Event {
     /// `event == "claude"`, with the `claude` permission (every 2 s): the Claude Code sessions on this PC. A session may come
     /// twice (it has more than one process): keep the one with the later `updated`.
     pub claude: Vec<ClaudeSession>,
+    /// `event == "claude"`, with the `claude_answer` permission: whether the hooks for answering are set up
+    pub claude_hooks: ClaudeHooks,
     /// the expanded island is open (on every event)
     pub hub: bool,
     /// `event == "system"`, with the `system` permission (every 2 s)
@@ -241,6 +243,85 @@ pub struct ClaudeSession {
     pub last: Option<ClaudeItem>,
     /// the window it runs in: "VS Code", "Terminal"...
     pub host: ClaudeHost,
+    /// the git branch it works on
+    pub branch: String,
+    /// how it is set to ask: "normal", "plan", "auto"...
+    pub mode: String,
+    /// how hard it thinks ("low", "medium", "high"...), when it says
+    pub effort: String,
+    /// its plan: the to-do list it keeps, in order
+    pub todos: Vec<ClaudeTodo>,
+    /// when the turn it is in began, ms since 1970 (the prompt that began it)
+    pub turn_started: u64,
+    /// how long the model thought before its latest step, ms
+    pub thinking_ms: u64,
+    /// what it said last (a few lines)
+    pub reply: String,
+    /// the files it changed, with the lines added and taken out, in the order it first touched them
+    pub files: Vec<ClaudeFile>,
+    /// how many agents it runs now, how many calls failed, how many commands it ran
+    pub agents: u32,
+    pub errors: u32,
+    pub commands: u32,
+    /// the call it waits on: it has begun and has no result yet
+    pub pending: Option<ClaudePending>,
+    /// a request the island holds for it, that the person can answer from here (with the `claude_answer` permission, and the hooks set
+    /// up: see [`Reply::claude_hooks`])
+    pub asking: Option<ClaudeAsking>,
+}
+
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeAsking {
+    /// what to answer it by ([`Reply::answer`])
+    pub id: String,
+    /// "permission" (it asks to run or change something) or "stop" (its turn is about to end: a reply makes it go on)
+    pub kind: String,
+    pub tool: String,
+    /// one of the island's line icons
+    pub icon: String,
+    /// what it is to do: the command, the file
+    pub detail: String,
+    /// how long it has waited, ms
+    pub age_ms: u64,
+}
+
+/// Whether Claude Code's hooks for answering are set up (see [`Event::claude_hooks`]).
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeHooks {
+    pub permission: bool,
+    pub stop: bool,
+    /// what went wrong the last time they were set up or taken away, else empty
+    pub error: String,
+}
+
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeTodo {
+    /// "done", "now" or "next"
+    pub status: String,
+    pub text: String,
+}
+
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudeFile {
+    /// the file's name, not its folder
+    pub name: String,
+    pub added: u64,
+    pub removed: u64,
+}
+
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct ClaudePending {
+    /// the tool ("Bash", "Edit"...)
+    pub tool: String,
+    /// one of the island's line icons
+    pub icon: String,
+    /// what it is to do: the command, the file
+    pub detail: String,
 }
 
 #[derive(Deserialize, Default, Clone, Debug)]
@@ -657,6 +738,41 @@ impl Card {
     pub fn stats(mut self, items: &[(String, &str)]) -> Self {
         let items: Vec<Value> = items.iter().map(|(v, l)| json!({ "value": v, "label": l })).collect();
         self.body.push(json!({ "kind": "stats", "items": items }));
+        self
+    }
+    /// small chips in a row (at most 6): `(icon, text, tone)`, the tone "" or "hot"
+    pub fn chips(mut self, items: &[(&str, String, &str)]) -> Self {
+        let items: Vec<Value> = items.iter().map(|(i, t, tone)| json!({ "icon": i, "text": t, "tone": tone })).collect();
+        self.body.push(json!({ "kind": "chips", "items": items }));
+        self
+    }
+    /// a strip with a line and a few words at its right; the tone is "working", "waiting", "finished" or "idle"
+    pub fn strip(mut self, text: impl Into<String>, side: impl Into<String>, tone: &str) -> Self {
+        self.body.push(json!({ "kind": "strip", "text": text.into(), "side": side.into(), "tone": tone }));
+        self
+    }
+    /// a to-do list with how far it is (at most 8 steps): `(state, text)`, the state "done", "now" or "next"
+    pub fn checklist(mut self, title: &str, items: &[(&str, String)]) -> Self {
+        let items: Vec<Value> = items.iter().map(|(s, t)| json!({ "state": s, "text": t })).collect();
+        self.body.push(json!({ "kind": "checklist", "title": title, "items": items }));
+        self
+    }
+    /// files with the lines added and taken out (at most 6): `(name, added, removed)`
+    pub fn files(mut self, title: &str, rows: &[(String, u64, u64)]) -> Self {
+        let rows: Vec<Value> = rows.iter().map(|(n, a, r)| json!({ "name": n, "added": a, "removed": r })).collect();
+        self.body.push(json!({ "kind": "files", "title": title, "rows": rows }));
+        self
+    }
+    /// what is asked of the person: a label, a line with an icon and what is to be done, and buttons with a tone ("ok", "no" or "")
+    /// that call the module (a text field under them, when it is given, calls `field_action` with the words as `text`)
+    pub fn ask(mut self, label: &str, side: &str, icon: &str, detail: impl Into<String>, buttons: &[(&str, &str, &str)], field: &str, field_action: &str) -> Self {
+        let buttons: Vec<Value> = buttons.iter().map(|(l, a, t)| json!({ "label": l, "action": a, "tone": t })).collect();
+        self.body.push(json!({ "kind": "ask", "label": label, "side": side, "icon": icon, "text": detail.into(), "buttons": buttons, "field": field, "action": field_action }));
+        self
+    }
+    /// a text field: what is typed goes to the module as `text` of `action`
+    pub fn field(mut self, placeholder: &str, hint: &str, action: &str) -> Self {
+        self.body.push(json!({ "kind": "field", "placeholder": placeholder, "hint": hint, "action": action }));
         self
     }
     /// a line through numbers, oldest first (at most 120): frame times, a speed. Drawn from 0 to `max` (the top of the
@@ -1166,9 +1282,25 @@ pub struct Reply {
     cancel: Vec<String>,
     browser: Option<Value>,
     rest: Option<Vec<String>>,
+    answer: Option<(String, String, String)>,
+    claude_hooks: Option<(String, bool, bool, u64)>,
 }
 
 impl Reply {
+    /// Answer a request the island holds for a session ([`ClaudeSession::asking`]), with the `claude_answer` permission:
+    /// `behavior` is "allow" or "deny" for a permission (`text` is what to tell Claude when it is denied), or "reply" for a stop
+    /// (`text` is what to say: Claude goes on from it).
+    pub fn answer(mut self, id: impl Into<String>, behavior: impl Into<String>, text: impl Into<String>) -> Self {
+        self.answer = Some((id.into(), behavior.into(), text.into()));
+        self
+    }
+    /// Set up ("install") or take away ("remove") the hooks of Claude Code that let the island answer: a request for a permission
+    /// (`permission`) and a turn that ends (`stop`). The island waits `wait_s` seconds for an answer, then lets Claude Code ask as it
+    /// always does. Needs the `claude_answer` permission; the person pressing a button for it is what it is for.
+    pub fn claude_hooks(mut self, action: &str, permission: bool, stop: bool, wait_s: u64) -> Self {
+        self.claude_hooks = Some((action.to_string(), permission, stop, wait_s));
+        self
+    }
     /// Which of the resting islands of the manifest (`rests`) are on now: while one is, and the user has not turned it off, the
     /// collapsed island shows it. An empty list says none is. The last one told stands until the next.
     pub fn rest(mut self, ids: &[&str]) -> Self {
@@ -1475,6 +1607,12 @@ impl Reply {
         }
         if let Some((exe, title)) = &self.focus {
             o.insert("focus".into(), json!({ "exe": exe, "title": title }));
+        }
+        if let Some((id, behavior, text)) = &self.answer {
+            o.insert("answer".into(), json!({ "id": id, "behavior": behavior, "text": text }));
+        }
+        if let Some((action, permission, stop, wait_s)) = &self.claude_hooks {
+            o.insert("claude_hooks".into(), json!({ "action": action, "permission": permission, "stop": stop, "wait_s": wait_s }));
         }
         if !self.cancel.is_empty() {
             o.insert("cancel".into(), json!(self.cancel));

@@ -1,10 +1,10 @@
 {
   "id": "claude",
   "name": "Claude",
-  "description": "Your Claude Code sessions as cards, a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits you have used.",
-  "version": "3.1.0",
+  "description": "Your Claude Code sessions as cards for as long as they run (and the Claude desktop app while it runs), a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits you have used.",
+  "version": "3.3.0",
   "kind": "bundle",
-  "tile": {"name": "Claude", "icon": "sparkle", "tint": "#e8963c", "sizes": ["small", "wide"], "idle": "all quiet", "look": "status", "picture": "claude-code.gif"},
+  "tile": {"name": "Claude", "icon": "claude", "tint": "#d97757", "sizes": ["small", "wide"], "idle": "all quiet", "look": "status", "picture": "claude-code.gif"},
   "replaces": [
     "claude-code",
     "claude-usage"
@@ -21,6 +21,23 @@
       "label": "Show how much of my limits is used",
       "type": "toggle",
       "default": true
+    },
+    "replies": {
+      "label": "Let me reply when a session finishes",
+      "type": "toggle",
+      "default": false
+    },
+    "wait": {
+      "label": "How long to wait for my answer",
+      "type": "choice",
+      "default": 20,
+      "options": [
+        { "value": 10, "label": "10 seconds" },
+        { "value": 20, "label": "20 seconds" },
+        { "value": 30, "label": "30 seconds" },
+        { "value": 60, "label": "1 minute" },
+        { "value": 120, "label": "2 minutes" }
+      ]
     }
   },
   "actions": [
@@ -30,6 +47,16 @@
       "label": "Sign In",
       "ask": "Paste the code the Claude page shows",
       "then": "usage_finish"
+    },
+    {
+      "part": "sessions",
+      "id": "answer_on",
+      "label": "Set Up Answering"
+    },
+    {
+      "part": "sessions",
+      "id": "answer_off",
+      "label": "Remove Answering"
     }
   ],
   "widgets": [
@@ -67,6 +94,7 @@
       "crate": "claude-code",
       "permissions": {
         "claude": true,
+        "claude_answer": true,
         "processes": true,
         "titles": true,
         "programs": true

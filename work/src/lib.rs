@@ -434,7 +434,7 @@ fn card_of(st: &State, ev: &Event) -> (Option<Card>, Vec<Card>) {
         if category == "coding" {
             let session = st.confirmed.as_deref() == Some("coding");
             let project = if st.active_project.is_empty() { "Coding".to_string() } else { st.active_project.clone() };
-            let mut card = Card::new().id("coding").icon("code").rank(40).title(project.clone());
+            let mut card = Card::new().id("coding").icon("code").rank(40).title(project.clone()).focus_action("focus:coding");
             if let Some(icon) = st.icons.get(&r.path) {
                 card = card.tile(icon.clone());
             }
@@ -482,7 +482,7 @@ fn card_of(st: &State, ev: &Event) -> (Option<Card>, Vec<Card>) {
         } else if category != "browsing" {
             let label = label_for(category);
             let name = if r.app_name.is_empty() { label.to_string() } else { r.app_name.clone() };
-            let mut card = Card::new().id(category).icon(glyph_for(category)).rank(50).title(name).sub(format!("{label} for {}", duration(now.saturating_sub(r.started_at))));
+            let mut card = Card::new().id(category).icon(glyph_for(category)).rank(50).title(name).sub(format!("{label} for {}", duration(now.saturating_sub(r.started_at)))).focus_action(format!("focus:{category}"));
             if let Some(icon) = st.icons.get(&r.path) {
                 card = card.tile(icon.clone());
             }
@@ -642,6 +642,13 @@ fn handle(ev: &Event) -> Reply {
                 Reply::nothing()
             }
             "processes" => look(&mut st, ev),
+            // (the circle of its card: the program it is about)
+            "action" => {
+                let Some(category) = ev.action.strip_prefix("focus:") else { return Reply::nothing() };
+                let Some(r) = st.recent.get(category) else { return Reply::nothing() };
+                let project = (category == "coding" && !st.active_project.is_empty()).then(|| st.active_project.clone());
+                Reply::nothing().focus(Some(&r.path), project.as_deref())
+            }
             _ => Reply::nothing(),
         }
     })

@@ -102,7 +102,7 @@ fn pct(v: f32) -> String {
 
 /// What the card of one game says.
 fn card_of(g: &Game, now: u64, rank: i32) -> Card {
-    let mut card = Card::new().icon("gamepad").rank(rank).title(g.name.clone()).sub(format!("Playing for {}", duration(now.saturating_sub(g.since))));
+    let mut card = Card::new().icon("gamepad").rank(rank).title(g.name.clone()).sub(format!("Playing for {}", duration(now.saturating_sub(g.since)))).focus_action(format!("focus:{}", g.pid));
     let Some(u) = &g.usage else { return card };
     if let Some(fps) = u.fps {
         card = card.peek(format!("{} FPS", fps.round() as i64)).glance(format!("{}", fps.round() as i64), format!("fps · {}", g.name));
@@ -211,6 +211,12 @@ fn handle(ev: &Event) -> Reply {
             "processes" => {
                 see_windows(&mut st, ev);
                 reply_for(&mut st, ev.now)
+            }
+            // (the circle of its card: the game)
+            "action" => {
+                let Some(pid) = ev.action.strip_prefix("focus:").and_then(|p| p.parse::<u32>().ok()) else { return Reply::nothing() };
+                let Some(g) = st.games.iter().find(|g| g.pid == pid) else { return Reply::nothing() };
+                Reply::nothing().focus(Some(&g.path), None)
             }
             "usage" => {
                 for u in &ev.usage {

@@ -958,10 +958,17 @@ pub struct SayPill {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tile: Option<Tile>,
     pub badges: Vec<Badge>,
-    /// "", "waiting" or "finished": the glow, and an icon at the right
+    /// how it stands (the glow, the circle, the icon at the right): "", "waiting", "finished", "working", "permission", "reply",
+    /// "stopped", "quiet" or "info"
     pub tone: String,
     /// what pressing it asks of the module (an `action` event, the user's: what it answers is shown whatever do not disturb says)
     pub press: String,
+    /// a second line under the title
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub sub: String,
+    /// up to two round buttons at the right, icon only (a check for "ok", a cross for "no"); a press is an `action` event
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub buttons: Vec<Value>,
 }
 
 impl Say {
@@ -986,6 +993,20 @@ impl Say {
             p.key = key.into();
             p.tone = tone.into();
             p.press = press.into();
+        }
+        self
+    }
+    /// ... with a second line under the title
+    pub fn with_sub(mut self, sub: impl Into<String>) -> Self {
+        if let Some(p) = self.pill.as_mut() {
+            p.sub = sub.into();
+        }
+        self
+    }
+    /// ... with round buttons at the right, icon only: `(label, action, tone)`, the tone "ok" (a check) or "no" (a cross); at most 2
+    pub fn with_buttons(mut self, buttons: &[(&str, &str, &str)]) -> Self {
+        if let Some(p) = self.pill.as_mut() {
+            p.buttons = buttons.iter().map(|(l, a, t)| json!({ "label": l, "action": a, "tone": t })).collect();
         }
         self
     }

@@ -1,8 +1,8 @@
 {
   "id": "claude",
   "name": "Claude",
-  "description": "Your Claude Code sessions as cards for as long as they run (and the Claude desktop app while it runs), a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits you have used.",
-  "version": "3.3.0",
+  "description": "Your Claude Code sessions as cards for as long as they run (and the Claude desktop app while it runs), a banner when a session changes state (with Allow and Deny on it when one asks), and how much of your Claude 5-hour and 7-day limits you have used.",
+  "version": "3.4.0",
   "kind": "bundle",
   "tile": {"name": "Claude", "icon": "claude", "tint": "#d97757", "sizes": ["small", "wide"], "idle": "all quiet", "look": "status", "picture": "claude-code.gif"},
   "replaces": [
@@ -13,9 +13,50 @@
   "banners": true,
   "settings": {
     "alerts": {
-      "label": "Pill when a session needs me or finishes",
+      "label": "Banners when a session changes",
       "type": "toggle",
       "default": true
+    },
+    "b_start": {
+      "label": "Banner: starts working",
+      "type": "toggle",
+      "default": true
+    },
+    "b_needs": {
+      "label": "Banner: needs me",
+      "type": "toggle",
+      "default": true
+    },
+    "b_done": {
+      "label": "Banner: done",
+      "type": "toggle",
+      "default": true
+    },
+    "b_stop": {
+      "label": "Banner: stopped with errors",
+      "type": "toggle",
+      "default": true
+    },
+    "b_quiet": {
+      "label": "Banner: gone quiet",
+      "type": "toggle",
+      "default": false
+    },
+    "b_open": {
+      "label": "Banner: session opens or closes",
+      "type": "toggle",
+      "default": false
+    },
+    "skip": {
+      "label": "No done banner for turns shorter than",
+      "type": "choice",
+      "default": 10,
+      "options": [
+        { "value": 0, "label": "Never skip" },
+        { "value": 10, "label": "10 seconds" },
+        { "value": 30, "label": "30 seconds" },
+        { "value": 60, "label": "1 minute" }
+      ]
     },
     "usage": {
       "label": "Show how much of my limits is used",

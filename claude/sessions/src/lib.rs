@@ -4,8 +4,10 @@
 //! session whose process is still there. The module decides what a session is (waiting for you, working, finished, idle) and draws
 //! a card for each one, the ones that need you first. A card stays as long as its session runs: it goes only when its source is
 //! gone (the editor was closed, the terminal exited), never because it was looked at or has been quiet. The Claude desktop app has a
-//! card too while it runs. The module also brings a pill when a session starts waiting for you or finishes a turn that took a while;
-//! it sees which window is in front (`processes`), so it does not interrupt you with a session you are looking at.
+//! card too while it runs. The module also brings a banner when a session changes state: it starts working, needs you (with Allow and
+//! Deny on it, when answering is set up), wants a reply, is done, stopped, went quiet, opened or closed. Each moment can be switched
+//! off; several at once are one banner. It sees which window is in front (`processes`), so it does not interrupt you with a session
+//! you are looking at.
 //!
 //! (How much of the Claude limits is used is another plugin, `claude-usage`: it reaches Anthropic, so it sees nothing of this PC.)
 
@@ -15,11 +17,20 @@ use std::collections::HashMap;
 
 /// idle again after a turn, this recently: finished, and the result waits for you
 const FINISHED_MS: u64 = 15 * 60 * 1000;
-/// a turn that took no more than this is a quick answer, not news
-const QUICK_MS: u64 = 5_000;
+/// a session that works this long has started: a quick answer is not news
+const STARTED_MS: u64 = 3_000;
+/// a request for a permission that the island does not hold is said after this long (the island holds it a moment after the session
+/// says it waits: with the buttons, it is better to wait for them)
+const ASK_MS: u64 = 2_500;
+/// idle this long after a turn: gone quiet
+const QUIET_MS: u64 = 5 * 60 * 1000;
 /// the most cards (the island lets a module have this many)
 const MAX_CARDS: usize = 24;
 const TILE: &str = "#d97757";
+const AMBER: &str = "#e8b04a";
+const GREEN: &str = "#5ac88c";
+const RED: &str = "#e87a7a";
+const GREY: &str = "#6d6d75";
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Kind {
@@ -28,12 +39,32 @@ enum Kind {
     Idle,
 }
 
+/// What the banners know of a session from the last look.
+#[derive(Default)]
+struct Seen {
+    kind: Option<Kind>,
+    /// when its turn began (ms), kept while it works and waits
+    since: u64,
+    /// how many errors it had when the turn began
+    errors: u32,
+    /// "started working" has been said for this turn
+    started: bool,
+    /// "needs you" has been said for this wait
+    asked: bool,
+    /// "gone quiet" has been said for this rest
+    quiet: bool,
+    /// what it was, for when it is gone
+    last: Option<ClaudeSession>,
+}
+
 #[derive(Default)]
 struct State {
     /// the sessions, once each (the one that changed last)
     sessions: Vec<ClaudeSession>,
-    /// the briefs: session id -> (how it stood, when the busy stretch began)
-    seen: HashMap<String, (Kind, u64)>,
+    /// what the banners know of each session
+    seen: HashMap<String, Seen>,
+    /// the first look has been had: what is there already is not news
+    primed: bool,
     /// the window in front: (the program's file name, lower case, and its title, lower case)
     front: Option<(String, String)>,
     /// the Claude desktop app, while it runs: (its program, the title of its window)
@@ -100,17 +131,6 @@ fn tokens(n: u64) -> String {
         format!("{:.1}M", n as f64 / 1e6)
     } else {
         format!("{}k", (n as f64 / 1000.0).round() as u64)
-    }
-}
-
-fn duration(secs: u64) -> String {
-    let (h, m) = (secs / 3600, (secs % 3600) / 60);
-    if h > 0 {
-        format!("{h}h {m}m")
-    } else if m > 0 {
-        format!("{m}m")
-    } else {
-        "<1m".to_string()
     }
 }
 
@@ -378,57 +398,266 @@ fn in_front(st: &State, s: &ClaudeSession) -> bool {
     s.host.icon == "term" || title.contains(&project_of(s).to_lowercase())
 }
 
-/// A pill for a session that needs you (it rings through do not disturb) or has finished.
-fn brief(st: &State, s: &ClaudeSession, tone: &'static str) -> Option<Say> {
-    if in_front(st, s) {
-        return None;
+/// What the person asked of the banners (the settings).
+struct Cfg {
+    on: bool,
+    start: bool,
+    needs: bool,
+    done: bool,
+    stop: bool,
+    quiet: bool,
+    open: bool,
+    /// a turn that took less than this is not announced, ms
+    skip_ms: u64,
+}
+
+impl Cfg {
+    fn of(ev: &Event) -> Cfg {
+        Cfg {
+            on: ev.setting_bool("alerts", true),
+            start: ev.setting_bool("b_start", true),
+            needs: ev.setting_bool("b_needs", true),
+            done: ev.setting_bool("b_done", true),
+            stop: ev.setting_bool("b_stop", true),
+            quiet: ev.setting_bool("b_quiet", false),
+            open: ev.setting_bool("b_open", false),
+            skip_ms: ev.settings["skip"].as_u64().unwrap_or(10) * 1000,
+        }
     }
-    let frac = used(s);
-    Some(
-        Say::new(title_of(s), if tone == "waiting" { 90 } else { 60 })
-            .pill(s.host.icon.clone(), "")
-            .keyed(s.id.clone(), tone, format!("focus:{}", s.id))
-            .with_tile(Tile::new("C", TILE).ring(frac, fill_color(frac)), vec![Badge::new(s.host.icon.clone(), format!("{}\n{}", s.host.label, project_of(s)))])
-            .ambient(),
+}
+
+/// One thing that happened to a session, to be said in a banner.
+struct Moment {
+    id: String,
+    title: String,
+    /// "working", "finished", "stopped", "quiet", "info" or "closed"
+    tone: &'static str,
+    sub: String,
+    ms: u64,
+    prio: i32,
+}
+
+impl Moment {
+    fn new(s: &ClaudeSession, tone: &'static str, sub: String, ms: u64, prio: i32) -> Moment {
+        Moment { id: s.id.clone(), title: title_of(s), tone, sub, ms, prio }
+    }
+}
+
+/// the circle of a banner: its colour is the state, and the ring around it is full unless the session works (then a part of it
+/// sweeps round) or does nothing (then there is none)
+fn tile_for(tone: &str) -> Tile {
+    let (color, ring) = match tone {
+        "working" => (TILE, Some(0.25)),
+        "permission" | "reply" | "waiting" => (AMBER, Some(1.0)),
+        "finished" => (GREEN, Some(1.0)),
+        "stopped" => (RED, Some(1.0)),
+        _ => (GREY, None),
+    };
+    match ring {
+        Some(r) => Tile::new("C", color).ring(r, color),
+        None => Tile::new("C", color),
+    }
+}
+
+/// a banner: the circle, the title, what changed under it, and the state (or buttons that answer) at the right
+fn banner(key: &str, title: String, tone: &'static str, sub: String, ms: u64, prio: i32, press: String, buttons: &[(&str, &str, &str)]) -> Say {
+    let mut say = Say::new(title, prio).pill("sparkle", "").keyed(key, tone, press).with_sub(sub).with_tile(tile_for(tone), Vec::new()).for_ms(ms).ambient();
+    if !buttons.is_empty() {
+        say = say.with_buttons(buttons);
+    }
+    say
+}
+
+fn say_of(m: &Moment) -> Say {
+    banner(&m.id, m.title.clone(), m.tone, m.sub.clone(), m.ms, m.prio, format!("focus:{}", m.id), &[])
+}
+
+fn clip(text: &str, n: usize) -> String {
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if text.chars().count() <= n {
+        text
+    } else {
+        format!("{}\u{2026}", text.chars().take(n).collect::<String>().trim_end())
+    }
+}
+
+/// a session waits on you: for a permission (with Allow and Deny when the island holds the request), or for a few words
+fn needs_you(s: &ClaudeSession, ask: Option<&ClaudeAsking>) -> Say {
+    let id = s.id.as_str();
+    let permission = ask.is_some() || s.waiting_for == "permission";
+    let call = match (ask, &s.pending) {
+        (Some(a), _) => Some((a.tool.as_str(), a.detail.as_str())),
+        (None, Some(p)) => Some((p.tool.as_str(), p.detail.as_str())),
+        (None, None) => None,
+    };
+    if permission {
+        let sub = match call {
+            Some((tool, detail)) if !detail.is_empty() => format!("{} {}", wants(tool), clip(detail, 80)),
+            _ => "Needs your answer".to_string(),
+        };
+        return match ask {
+            Some(a) => banner(id, title_of(s), "permission", sub, 12_000, 90, format!("focus:{id}"), &[("Allow", &format!("allow:{}", a.id), "ok"), ("Deny", &format!("deny:{}", a.id), "no")]),
+            None => banner(id, title_of(s), "permission", sub, 8_000, 90, format!("focus:{id}"), &[]),
+        };
+    }
+    let sub = match call {
+        Some((_, detail)) if !detail.is_empty() => format!("Asks: {}", clip(detail, 80)),
+        _ => "Wants a reply".to_string(),
+    };
+    banner(id, title_of(s), "reply", sub, 12_000, 90, format!("focus:{id}"), &[])
+}
+
+/// a turn that is held open for you to reply (the Stop hook): what it said
+fn held_reply(s: &ClaudeSession) -> Say {
+    let sub = if s.reply.is_empty() { "Done \u{b7} wants a reply".to_string() } else { format!("Says: {}", clip(&s.reply, 80)) };
+    banner(&s.id, title_of(s), "reply", sub, 12_000, 90, format!("focus:{}", s.id), &[])
+}
+
+/// "2 done \u{b7} 1 started working": what several sessions did at once, as one banner
+fn merged(moments: &[Moment]) -> Say {
+    let count = |tone: &str| moments.iter().filter(|m| m.tone == tone).count();
+    let mut parts = Vec::new();
+    for (tone, word) in [("stopped", "stopped"), ("finished", "done"), ("working", "started working"), ("quiet", "quiet"), ("info", "new"), ("closed", "closed")] {
+        let n = count(tone);
+        if n > 0 {
+            parts.push(format!("{n} {word}"));
+        }
+    }
+    let tone = ["stopped", "finished", "working", "info", "quiet", "closed"].into_iter().find(|t| count(t) > 0).unwrap_or("info");
+    let first = &moments[0];
+    banner(
+        "claude-many",
+        format!("{} sessions", moments.len()),
+        tone,
+        parts.join(" \u{b7} "),
+        moments.iter().map(|m| m.ms).max().unwrap_or(5000),
+        moments.iter().map(|m| m.prio).max().unwrap_or(40),
+        format!("focus:{}", first.id),
+        &[],
     )
 }
 
-/// Watch the sessions go by: a pill when one starts waiting for you or finishes a turn that took a while, and the pill taken back
-/// when you have answered.
-fn alerts(st: &mut State, hub: bool, on: bool) -> (Vec<Say>, Vec<String>) {
+/// when the turn of a session began
+fn turn_start(s: &ClaudeSession) -> u64 {
+    if s.turn_started > 0 {
+        s.turn_started
+    } else {
+        s.updated
+    }
+}
+
+/// Watch the sessions go by, and say what changed: it starts working, needs you, is done, stopped, went quiet, opened or closed
+/// (each of which can be switched off). Several things at once are one banner; what needs you never is, its buttons are its own.
+/// What was said of a session that waited is taken back when it has been answered.
+fn alerts(st: &mut State, now: u64, hub: bool, cfg: &Cfg) -> (Vec<Say>, Vec<String>) {
     let (mut says, mut cancel) = (Vec::new(), Vec::new());
-    if !on {
+    if !cfg.on {
         st.seen.clear();
+        st.primed = false;
         return (says, cancel);
     }
     let sessions = st.sessions.clone();
+    // (the hub shows the cards already; what is there at the first look is not news)
+    let announce = st.primed && !hub;
+    let mut moments: Vec<Moment> = Vec::new();
     let mut present = Vec::new();
     for s in &sessions {
         present.push(s.id.clone());
         let kind = kind_of(s);
-        let prev = st.seen.get(&s.id).copied();
-        match (prev.map(|p| p.0), kind) {
-            (Some(Kind::Waiting), k) if k != Kind::Waiting => cancel.push(s.id.clone()),
-            (p, Kind::Waiting) if p != Some(Kind::Waiting) => {
-                // (the hub shows the cards already)
-                if !hub {
-                    says.extend(brief(st, s, "waiting"));
-                }
+        let mut seen = st.seen.remove(&s.id).unwrap_or_default();
+        let prev = seen.kind;
+        let visible = announce && !in_front(st, s);
+        if prev.is_none() {
+            seen.since = turn_start(s);
+            seen.errors = s.errors;
+            seen.started = true;
+            seen.quiet = true;
+            if cfg.open && visible {
+                moments.push(Moment::new(s, "info", format!("New session \u{b7} {}", s.host.label), 3000, 30));
             }
-            (Some(Kind::Busy), Kind::Idle) if s.updated.saturating_sub(prev.map_or(0, |p| p.1)) >= QUICK_MS => {
-                if !hub {
-                    says.extend(brief(st, s, "finished"));
-                }
-            }
-            _ => {}
         }
-        let busy_since = match prev {
-            Some((Kind::Busy, t)) if kind == Kind::Busy => t,
-            _ => s.updated,
-        };
-        st.seen.insert(s.id.clone(), (kind, busy_since));
+        if prev == Some(Kind::Waiting) && kind != Kind::Waiting {
+            cancel.push(s.id.clone());
+            seen.asked = false;
+        }
+        // a new turn
+        if kind != Kind::Idle && prev == Some(Kind::Idle) {
+            seen.since = turn_start(s);
+            seen.errors = s.errors;
+            seen.started = false;
+            seen.quiet = false;
+        }
+        match kind {
+            Kind::Waiting => {
+                let ask = s.asking.as_ref().filter(|a| a.kind == "permission");
+                if !seen.asked && (ask.is_some() || now.saturating_sub(s.updated) >= ASK_MS) {
+                    seen.asked = true;
+                    if cfg.needs && visible {
+                        says.push(needs_you(s, ask));
+                    }
+                }
+            }
+            Kind::Busy => {
+                if !seen.started && now.saturating_sub(seen.since) >= STARTED_MS {
+                    seen.started = true;
+                    if cfg.start && visible {
+                        moments.push(Moment::new(s, "working", format!("Started working \u{b7} {}", s.host.label), 3000, 40));
+                    }
+                }
+            }
+            Kind::Idle => {
+                if matches!(prev, Some(Kind::Busy | Kind::Waiting)) {
+                    // its turn ended
+                    let took = if s.turn_started > 0 && s.turn_started <= s.updated { s.updated - s.turn_started } else { s.updated.saturating_sub(seen.since) };
+                    seen.quiet = false;
+                    if took >= cfg.skip_ms && visible {
+                        let errors = s.errors.saturating_sub(seen.errors);
+                        let held = s.asking.as_ref().is_some_and(|a| a.kind == "stop");
+                        if held {
+                            if cfg.needs {
+                                says.push(held_reply(s));
+                            }
+                        } else if errors > 0 && cfg.stop {
+                            let sub = format!("Stopped \u{b7} {errors} error{}", if errors == 1 { "" } else { "s" });
+                            moments.push(Moment::new(s, "stopped", sub, 6000, 60));
+                        } else if cfg.done {
+                            let files = s.files.len();
+                            let mut sub = format!("Done in {}", clock_dur(took / 1000));
+                            if files > 0 {
+                                sub.push_str(&format!(" \u{b7} {files} file{} changed", if files == 1 { "" } else { "s" }));
+                            }
+                            moments.push(Moment::new(s, "finished", sub, 5000, 60));
+                        }
+                    }
+                } else if !seen.quiet && now.saturating_sub(s.updated) >= QUIET_MS {
+                    seen.quiet = true;
+                    if cfg.quiet && visible && s.model.is_some() {
+                        moments.push(Moment::new(s, "quiet", format!("Quiet for {} min", now.saturating_sub(s.updated) / 60_000), 3000, 30));
+                    }
+                }
+            }
+        }
+        seen.kind = Some(kind);
+        seen.last = Some(s.clone());
+        st.seen.insert(s.id.clone(), seen);
     }
-    st.seen.retain(|id, _| present.contains(id));
+    // the sessions that are gone
+    let gone: Vec<String> = st.seen.keys().filter(|id| !present.contains(id)).cloned().collect();
+    for id in gone {
+        let Some(seen) = st.seen.remove(&id) else { continue };
+        if seen.kind == Some(Kind::Waiting) {
+            cancel.push(id.clone());
+        }
+        if let (true, true, Some(last)) = (cfg.open, announce, seen.last.as_ref()) {
+            moments.push(Moment::new(last, "closed", "Session closed".to_string(), 3000, 30));
+        }
+    }
+    match moments.len() {
+        0 => {}
+        1 => says.push(say_of(&moments[0])),
+        _ => says.push(merged(&moments)),
+    }
+    st.primed = true;
     (says, cancel)
 }
 
@@ -472,7 +701,7 @@ fn handle(ev: &Event) -> Reply {
             }
             "claude" => {
                 st.sessions = once_each(&ev.claude);
-                let (says, cancel) = alerts(&mut st, ev.hub, ev.setting_bool("alerts", true));
+                let (says, cancel) = alerts(&mut st, ev.now, ev.hub, &Cfg::of(ev));
                 let mut reply = reply_cards(&st, ev.now);
                 // the resting island (the bundle's `rests`): on while a session needs you, with who at the left
                 let waiting = st.sessions.iter().filter(|s| state_of(s, ev.now) == "waiting").count();
@@ -755,48 +984,191 @@ mod tests {
         assert_eq!(handle(&cli).to_json()["card"], Value::Null);
     }
 
+    /// the banners said at a look
+    fn said(r: &Value) -> Vec<Value> {
+        r["say"].as_array().cloned().unwrap_or_default()
+    }
+
+    /// a session that waits for a permission, as the island holds it
+    fn asked(id: &str, updated: u64) -> ClaudeSession {
+        let mut s = session(id, "busy", updated);
+        s.waiting_for = "permission".into();
+        s.asking = Some(ClaudeAsking { id: "r1".into(), kind: "permission".into(), tool: "Bash".into(), icon: "term".into(), detail: "cargo build --release".into(), age_ms: 100 });
+        s
+    }
+
     #[test]
-    fn a_session_that_starts_waiting_brings_a_pill_and_answering_it_takes_the_pill_back() {
+    fn a_session_that_needs_a_permission_brings_a_banner_with_allow_and_deny_and_answering_takes_it_back() {
         fresh();
         let mut s = session("w", "busy", T0);
         handle(&look(T0, vec![s.clone()]));
-        s.waiting_for = "permission".into();
-        s.updated = T0 + 4000;
-        let r = handle(&look(T0 + 5000, vec![s.clone()])).to_json();
-        let say = &r["say"][0];
+        // the island holds the request: the banner has the buttons, as soon as it is there
+        let r = handle(&look(T0 + 2000, vec![asked("w", T0 + 1500)])).to_json();
+        let say = &said(&r)[0];
         assert_eq!(say["text"], "Fix the thing");
         assert_eq!(say["priority"], 90);
         assert_eq!(say["ambient"], true);
         assert_eq!(say["pill"]["key"], "w");
-        assert_eq!(say["pill"]["tone"], "waiting");
+        assert_eq!(say["pill"]["tone"], "permission");
         assert_eq!(say["pill"]["press"], "focus:w");
+        assert_eq!(say["pill"]["sub"], "Wants to run cargo build --release");
         assert_eq!(say["pill"]["tile"]["text"], "C");
-        // told again while it waits: no second pill
-        assert_eq!(handle(&look(T0 + 7000, vec![s.clone()])).to_json()["say"], json!([]));
-        // answered: the pill is taken back
-        s.waiting_for.clear();
-        s.updated = T0 + 9000;
-        let r = handle(&look(T0 + 10_000, vec![s])).to_json();
+        assert_eq!(say["pill"]["buttons"][0], json!({ "label": "Allow", "action": "allow:r1", "tone": "ok" }));
+        assert_eq!(say["pill"]["buttons"][1]["action"], "deny:r1");
+        // told again while it waits: no second banner
+        assert!(said(&handle(&look(T0 + 4000, vec![asked("w", T0 + 1500)])).to_json()).is_empty());
+        // answered: the banner is taken back
+        s.updated = T0 + 6000;
+        let r = handle(&look(T0 + 7000, vec![s])).to_json();
         assert_eq!(r["cancel"], json!(["w"]));
     }
 
     #[test]
-    fn a_turn_that_took_a_while_brings_a_finished_pill_and_a_quick_one_does_not() {
+    fn a_permission_the_island_does_not_hold_is_told_after_a_moment_and_has_no_buttons() {
         fresh();
-        let busy = session("a", "busy", T0);
-        handle(&look(T0, vec![busy.clone()]));
-        let r = handle(&look(T0 + 12_000, vec![session("a", "idle", T0 + 11_000)])).to_json();
-        assert_eq!(r["say"][0]["pill"]["tone"], "finished");
-        assert_eq!(r["say"][0]["priority"], 60);
-        // a quick answer
-        fresh();
-        handle(&look(T0, vec![session("a", "busy", T0)]));
-        let r = handle(&look(T0 + 4000, vec![session("a", "idle", T0 + 3000)])).to_json();
-        assert_eq!(r["say"], json!([]));
+        handle(&look(T0, vec![session("w", "busy", T0)]));
+        let mut s = session("w", "busy", T0 + 1000);
+        s.waiting_for = "permission".into();
+        s.pending = Some(ClaudePending { tool: "Edit".into(), icon: "pen".into(), detail: "lib.rs".into() });
+        // (too soon: the request may still come to the island)
+        assert!(said(&handle(&look(T0 + 2000, vec![s.clone()])).to_json()).is_empty());
+        let r = handle(&look(T0 + 4000, vec![s])).to_json();
+        let say = &said(&r)[0];
+        assert_eq!(say["pill"]["tone"], "permission");
+        assert_eq!(say["pill"]["sub"], "Wants to change lib.rs");
+        assert!(say["pill"].get("buttons").is_none());
     }
 
     #[test]
-    fn no_pill_over_the_hub_with_the_setting_off_or_for_the_window_in_front() {
+    fn a_session_that_wants_a_few_words_brings_the_ringing_phone() {
+        fresh();
+        handle(&look(T0, vec![session("w", "busy", T0)]));
+        let mut s = session("w", "busy", T0 + 1000);
+        s.waiting_for = "input".into();
+        s.pending = Some(ClaudePending { tool: "AskUserQuestion".into(), icon: "ask".into(), detail: "which file should I change?".into() });
+        let r = handle(&look(T0 + 4000, vec![s])).to_json();
+        assert_eq!((said(&r)[0]["pill"]["tone"].as_str(), said(&r)[0]["pill"]["sub"].as_str()), (Some("reply"), Some("Asks: which file should I change?")));
+        // a turn held open for a reply
+        fresh();
+        handle(&look(T0, vec![session("h", "busy", T0)]));
+        let mut done = session("h", "idle", T0 + 30_000);
+        done.reply = "The tiles are half the size.".into();
+        done.asking = Some(ClaudeAsking { id: "s1".into(), kind: "stop".into(), ..ClaudeAsking::default() });
+        let r = handle(&look(T0 + 31_000, vec![done])).to_json();
+        assert_eq!((said(&r)[0]["pill"]["tone"].as_str(), said(&r)[0]["pill"]["sub"].as_str()), (Some("reply"), Some("Says: The tiles are half the size.")));
+    }
+
+    #[test]
+    fn a_session_that_works_for_a_moment_has_started_and_a_quick_answer_has_not() {
+        fresh();
+        handle(&look(T0, vec![session("a", "idle", T0 - 600_000)]));
+        // it begins: not yet news
+        let mut s = session("a", "busy", T0 + 1000);
+        s.turn_started = T0 + 1000;
+        assert!(said(&handle(&look(T0 + 2000, vec![s.clone()])).to_json()).is_empty());
+        // it is still at it
+        let r = handle(&look(T0 + 5000, vec![s.clone()])).to_json();
+        let say = &said(&r)[0];
+        assert_eq!((say["pill"]["tone"].as_str(), say["pill"]["sub"].as_str(), say["priority"].as_i64()), (Some("working"), Some("Started working \u{b7} VS Code"), Some(40)));
+        assert_eq!(say["pill"]["ms"], 3000);
+        // said once for the turn
+        assert!(said(&handle(&look(T0 + 7000, vec![s])).to_json()).is_empty());
+        // a quick one is over before it matters
+        fresh();
+        handle(&look(T0, vec![session("a", "idle", T0 - 600_000)]));
+        let mut q = session("a", "busy", T0 + 1000);
+        q.turn_started = T0 + 1000;
+        assert!(said(&handle(&look(T0 + 2000, vec![q])).to_json()).is_empty());
+        assert!(said(&handle(&look(T0 + 4000, vec![session("a", "idle", T0 + 3000)])).to_json()).is_empty());
+    }
+
+    #[test]
+    fn a_turn_that_took_a_while_is_done_with_how_long_and_what_it_changed_and_a_quick_one_is_not() {
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0)]));
+        let mut done = session("a", "idle", T0 + 362_000);
+        done.turn_started = T0;
+        done.files = vec![ClaudeFile { name: "lib.rs".into(), added: 4, removed: 1 }, ClaudeFile { name: "hub.css".into(), added: 2, removed: 0 }];
+        let r = handle(&look(T0 + 363_000, vec![done])).to_json();
+        let say = &said(&r)[0];
+        assert_eq!((say["pill"]["tone"].as_str(), say["pill"]["sub"].as_str(), say["priority"].as_i64()), (Some("finished"), Some("Done in 6m 02s \u{b7} 2 files changed"), Some(60)));
+        // a quick answer (under the limit of the settings, 10 s)
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0)]));
+        assert!(said(&handle(&look(T0 + 4000, vec![session("a", "idle", T0 + 3000)])).to_json()).is_empty());
+        // ... with the limit at "never", it is told
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0)]));
+        let mut ev = look(T0 + 4000, vec![session("a", "idle", T0 + 3000)]);
+        ev.settings = json!({ "skip": 0 });
+        assert_eq!(said(&handle(&ev).to_json()).len(), 1);
+    }
+
+    #[test]
+    fn a_turn_with_errors_has_stopped() {
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0)]));
+        let mut done = session("a", "idle", T0 + 60_000);
+        done.errors = 2;
+        let r = handle(&look(T0 + 61_000, vec![done.clone()])).to_json();
+        assert_eq!((said(&r)[0]["pill"]["tone"].as_str(), said(&r)[0]["pill"]["sub"].as_str()), (Some("stopped"), Some("Stopped \u{b7} 2 errors")));
+        // with that moment off, it is only done
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0)]));
+        let mut ev = look(T0 + 61_000, vec![done]);
+        ev.settings = json!({ "b_stop": false });
+        assert_eq!(said(&handle(&ev).to_json())[0]["pill"]["tone"], "finished");
+    }
+
+    #[test]
+    fn going_quiet_and_opening_and_closing_are_off_until_they_are_asked_for() {
+        // (a session that finished long ago, seen now)
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0 - 400_000)]));
+        let idle = session("a", "idle", T0 - 1000);
+        let mut ev = look(T0 + 1000, vec![idle.clone()]);
+        handle(&ev);
+        ev = look(T0 + 6 * 60_000, vec![idle.clone()]);
+        assert!(said(&handle(&ev).to_json()).is_empty());
+        // ... asked for
+        fresh();
+        let mut first = look(T0, vec![session("a", "busy", T0 - 400_000)]);
+        first.settings = json!({ "b_quiet": true, "b_open": true });
+        handle(&first);
+        let mut done = look(T0 + 1000, vec![session("a", "idle", T0 - 1000)]);
+        done.settings = first.settings.clone();
+        handle(&done);
+        let mut late = look(T0 + 6 * 60_000, vec![session("a", "idle", T0 - 1000)]);
+        late.settings = first.settings.clone();
+        let r = handle(&late).to_json();
+        assert_eq!((said(&r)[0]["pill"]["tone"].as_str(), said(&r)[0]["pill"]["sub"].as_str()), (Some("quiet"), Some("Quiet for 6 min")));
+        // a new session, and one that is gone
+        let mut two = look(T0 + 6 * 60_000 + 2000, vec![session("a", "idle", T0 - 1000), session("b", "idle", T0)]);
+        two.settings = first.settings.clone();
+        let r = handle(&two).to_json();
+        assert_eq!((said(&r)[0]["pill"]["tone"].as_str(), said(&r)[0]["pill"]["sub"].as_str()), (Some("info"), Some("New session \u{b7} VS Code")));
+        let mut gone = look(T0 + 6 * 60_000 + 4000, vec![session("b", "idle", T0)]);
+        gone.settings = first.settings.clone();
+        let r = handle(&gone).to_json();
+        assert_eq!((said(&r)[0]["pill"]["tone"].as_str(), said(&r)[0]["pill"]["sub"].as_str()), (Some("closed"), Some("Session closed")));
+    }
+
+    #[test]
+    fn several_things_at_once_are_one_banner_but_what_needs_you_is_never_in_it() {
+        fresh();
+        handle(&look(T0, vec![session("a", "busy", T0), session("b", "busy", T0), session("c", "busy", T0)]));
+        let r = handle(&look(T0 + 61_000, vec![session("a", "idle", T0 + 60_000), session("b", "idle", T0 + 60_000), asked("c", T0 + 1000)])).to_json();
+        let all = said(&r);
+        assert_eq!(all.len(), 2);
+        // (the one that needs you: its own, with its buttons)
+        let own = all.iter().find(|x| x["pill"]["tone"] == "permission").unwrap();
+        assert_eq!(own["pill"]["buttons"][0]["action"], "allow:r1");
+        let many = all.iter().find(|x| x["pill"]["key"] == "claude-many").unwrap();
+        assert_eq!((many["text"].as_str(), many["pill"]["sub"].as_str(), many["pill"]["tone"].as_str()), (Some("2 sessions"), Some("2 done"), Some("finished")));
+    }
+
+    #[test]
+    fn no_banner_over_the_hub_with_the_setting_off_at_the_first_look_or_for_the_window_in_front() {
         let waiting = |updated: u64| {
             let mut s = session("w", "busy", updated);
             s.waiting_for = "input".into();
@@ -805,25 +1177,34 @@ mod tests {
         // over the hub
         fresh();
         handle(&look(T0, vec![session("w", "busy", T0)]));
-        let mut ev = look(T0 + 2000, vec![waiting(T0 + 1000)]);
+        let mut ev = look(T0 + 4000, vec![waiting(T0 + 1000)]);
         ev.hub = true;
-        assert_eq!(handle(&ev).to_json()["say"], json!([]));
+        assert!(said(&handle(&ev).to_json()).is_empty());
         // the setting off
         fresh();
         handle(&look(T0, vec![session("w", "busy", T0)]));
-        let mut ev = look(T0 + 2000, vec![waiting(T0 + 1000)]);
+        let mut ev = look(T0 + 4000, vec![waiting(T0 + 1000)]);
         ev.settings = json!({ "alerts": false });
-        assert_eq!(handle(&ev).to_json()["say"], json!([]));
+        assert!(said(&handle(&ev).to_json()).is_empty());
+        // the moment off
+        fresh();
+        handle(&look(T0, vec![session("w", "busy", T0)]));
+        let mut ev = look(T0 + 4000, vec![waiting(T0 + 1000)]);
+        ev.settings = json!({ "b_needs": false });
+        assert!(said(&handle(&ev).to_json()).is_empty());
+        // a session that was waiting before the island looked is not news
+        fresh();
+        assert!(said(&handle(&look(T0 + 4000, vec![waiting(T0 + 1000)])).to_json()).is_empty());
         // its window in front, on its project
         fresh();
         handle(&look(T0, vec![session("w", "busy", T0)]));
         handle(&Event { event: "processes".into(), windows: vec![Window { exe: "code.exe".into(), title: "lib.rs - nadi - Visual Studio Code".into(), front: true, ..Window::default() }], ..Event::default() });
-        assert_eq!(handle(&look(T0 + 2000, vec![waiting(T0 + 1000)])).to_json()["say"], json!([]));
+        assert!(said(&handle(&look(T0 + 4000, vec![waiting(T0 + 1000)])).to_json()).is_empty());
         // ... but another folder of the same editor is not it
         fresh();
         handle(&look(T0, vec![session("w", "busy", T0)]));
         handle(&Event { event: "processes".into(), windows: vec![Window { exe: "code.exe".into(), title: "other - Visual Studio Code".into(), front: true, ..Window::default() }], ..Event::default() });
-        assert_eq!(handle(&look(T0 + 2000, vec![waiting(T0 + 1000)])).to_json()["say"].as_array().unwrap().len(), 1);
+        assert_eq!(said(&handle(&look(T0 + 4000, vec![waiting(T0 + 1000)])).to_json()).len(), 1);
     }
 
     #[test]

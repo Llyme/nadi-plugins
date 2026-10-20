@@ -73,6 +73,8 @@ pub struct Event {
     pub claude: Vec<ClaudeSession>,
     /// `event == "claude"`, with the `claude_answer` permission: whether the hooks for answering are set up
     pub claude_hooks: ClaudeHooks,
+    /// `event == "battery"`: the battery (`permissions.battery`), when it changed and at least each half minute
+    pub battery: Battery,
     /// the expanded island is open (on every event)
     pub hub: bool,
     /// `event == "system"`, with the `system` permission (every 2 s)
@@ -284,6 +286,29 @@ pub struct ClaudeAsking {
     pub detail: String,
     /// how long it has waited, ms
     pub age_ms: u64,
+}
+
+/// The battery (see [`Event::battery`]). `present` is false on a PC with no battery, and then nothing else is told.
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub struct Battery {
+    pub present: bool,
+    /// 0 to 100
+    pub percent: Option<f64>,
+    /// the charger is in
+    pub plugged: bool,
+    /// it is taking power (plugged in and full is not charging)
+    pub charging: bool,
+    /// battery saver is on
+    pub saver: bool,
+    pub minutes_left: Option<i64>,
+    pub minutes_to_full: Option<i64>,
+    /// watts: in (positive) or out (negative)
+    pub rate_w: Option<f64>,
+    /// what it holds full, against what it held new, in percent
+    pub health: Option<f64>,
+    pub full_wh: Option<f64>,
+    pub design_wh: Option<f64>,
 }
 
 /// Whether Claude Code's hooks for answering are set up (see [`Event::claude_hooks`]).
@@ -564,11 +589,23 @@ pub struct Tile {
     pub ring: Option<f32>,
     /// `#rrggbb`
     pub ring_color: String,
+    /// drawn as a vessel of liquid filled as far as `ring` says, in `color`, with the text in it (a battery): a card has it as its circle with
+    /// a battery lying down at the right of its header, a brief has it as its circle, and a tile with `"look": "vessel"` is the vessel
+    #[serde(skip_serializing_if = "is_false")]
+    pub vessel: bool,
+    /// a bolt over the liquid, which bubbles (it is charging)
+    #[serde(skip_serializing_if = "is_false")]
+    pub bolt: bool,
 }
 
 impl Tile {
     pub fn new(text: impl Into<String>, color: impl Into<String>) -> Self {
-        Tile { text: text.into(), color: color.into(), ring: None, ring_color: "#5ac88c".into() }
+        Tile { text: text.into(), color: color.into(), ring: None, ring_color: "#5ac88c".into(), vessel: false, bolt: false }
+    }
+    /// a vessel of liquid, `level` 0 to 1 full, with a bolt while it charges (see [`Tile::vessel`])
+    pub fn liquid(text: impl Into<String>, color: impl Into<String>, level: f32, charging: bool) -> Self {
+        let color = color.into();
+        Tile { text: text.into(), color: color.clone(), ring: Some(level), ring_color: color, vessel: true, bolt: charging }
     }
     /// a ring around it, 0 to 1, in a colour
     pub fn ring(mut self, part: f32, color: impl Into<String>) -> Self {
@@ -1130,6 +1167,17 @@ impl Blocks {
     /// (`permissions.viz`)
     pub fn viz(mut self, px: u32, color: &str) -> Self {
         self.0.push(json!({ "viz": px, "color": color }));
+        self
+    }
+    /// the battery: `shape` "icon" (a battery lying down, with `text` and `sub` beside it) or "circle" (a round vessel with the number in it and
+    /// `sub` under it), a liquid filled to `level` (0 to 1) in a colour, with a bolt and bubbles while it `charging`
+    pub fn vessel(mut self, shape: &str, level: f32, color: &str, charging: bool, text: &str, sub: &str) -> Self {
+        self.0.push(json!({ "vessel": { "shape": shape, "level": level, "color": color, "charging": charging, "text": text, "sub": sub } }));
+        self
+    }
+    /// a small line through numbers (0 to 100, oldest first), with a number over it at the left and a few words at the right
+    pub fn spark(mut self, values: &[f32], color: &str, text: &str, sub: &str) -> Self {
+        self.0.push(json!({ "spark": { "values": values, "color": color, "text": text, "sub": sub } }));
         self
     }
     /// a round button with an icon ("play", "pause", "next"...): a press comes back as an `action` with `id` as `press`

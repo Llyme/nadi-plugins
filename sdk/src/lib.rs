@@ -538,6 +538,10 @@ pub struct Card {
     /// what the plugin's tile says at a glance: a big word or number and a few words under it
     #[serde(skip_serializing_if = "Option::is_none")]
     pub glance: Option<Glance>,
+    /// the three bars that dance with the sound, in this colour (`#rrggbb`): at the right of the header, and on the plugin's tile. They
+    /// are gone while nothing is heard. Needs `permissions.viz` (the island listens; the module is told nothing of the sound)
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub viz: String,
     pub body: Vec<Value>,
 }
 
@@ -700,6 +704,11 @@ impl Card {
     /// what the plugin's tile says at a glance (see [`Glance`]); without it the tile shows the card's title and second line
     pub fn glance(mut self, big: impl Into<String>, caption: impl Into<String>) -> Self {
         self.glance = Some(Glance { big: big.into(), caption: caption.into() });
+        self
+    }
+    /// show the sound as three bars that dance, in this colour (see [`Card::viz`])
+    pub fn with_viz(mut self, color: impl Into<String>) -> Self {
+        self.viz = color.into();
         self
     }
     /// pressing the card's icon calls the module with this action
@@ -1115,6 +1124,12 @@ impl Blocks {
     /// picture, `"keep"` for the one this widget showed last, or "" for the `icon` instead.
     pub fn item(mut self, tile: &str, icon: &str, text: &str, sub: &str) -> Self {
         self.0.push(json!({ "item": { "tile": tile, "icon": icon, "text": text, "sub": sub } }));
+        self
+    }
+    /// the three bars that dance with the sound, `px` tall at most (8 to 40), in a colour (`#rrggbb`); they are gone while nothing is heard
+    /// (`permissions.viz`)
+    pub fn viz(mut self, px: u32, color: &str) -> Self {
+        self.0.push(json!({ "viz": px, "color": color }));
         self
     }
     /// a round button with an icon ("play", "pause", "next"...): a press comes back as an `action` with `id` as `press`

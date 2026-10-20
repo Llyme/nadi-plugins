@@ -1,13 +1,16 @@
 {
   "id": "now-playing",
   "name": "Now playing",
-  "description": "A pill and a card for what is playing, with play, skip, seek and speed.",
-  "version": "2.1.0",
+  "description": "A pill and a card for what is playing, with play, skip, seek and speed, and three bars that dance with the sound.",
+  "version": "2.2.0",
   "kind": "wasm",
   "tile": {"name": "Now playing", "icon": "music", "tint": "#c23a7a", "sizes": ["large", "wide", "small"], "idle": "Nothing playing"},
   "module": "now-playing.wasm",
   "default_on": false,
-  "permissions": { "media": true, "media_art": true, "media_control": true },
+  "permissions": { "media": true, "media_art": true, "media_control": true, "viz": true },
+  "settings": {
+    "visualizer": { "label": "Show the sound as three bars", "type": "toggle", "default": true }
+  },
   "source": { "when": "always" },
   "widgets": [
     { "id": "song", "name": "Song", "place": "left", "rank": 40, "width": 120, "start": false },

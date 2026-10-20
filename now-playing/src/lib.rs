@@ -13,6 +13,8 @@ const RATES: [f64; 13] = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 
 /// the card leads the hub's list, the pill sits below the games'
 const CARD_RANK: i32 = 10;
 const PILL_RANK: i32 = 30;
+/// the colour of the three bars of the sound (the plugin's tint)
+const TINT: &str = "#c23a7a";
 
 #[derive(Default)]
 struct State {
@@ -21,6 +23,8 @@ struct State {
     arts: HashMap<String, (u64, String)>,
     /// which picture the pill and the card hold now (a picture is sent once, then "keep")
     sent: Option<(String, u64)>,
+    /// the setting: the sound shown as three bars (the island draws them, and they are gone while nothing is heard)
+    viz: bool,
 }
 
 thread_local! {
@@ -77,6 +81,9 @@ fn reply_for(st: &mut State) -> Reply {
     }
     // the card: the buttons in its header, and under it the seek bar with the jumps at its sides and the speed after them
     let mut card = Card::new().icon("music").tile(image.clone()).rank(CARD_RANK).title(s.title.clone()).sub(s.artist.clone()).controls(transport(&s));
+    if st.viz {
+        card = card.with_viz(TINT);
+    }
     let mut back: Vec<Button> = Vec::new();
     let mut after: Vec<Button> = Vec::new();
     if s.can_seek {
@@ -101,7 +108,7 @@ fn reply_for(st: &mut State) -> Reply {
         card = card.list(&others);
     }
     // the widgets of the resting island (its manifest's `rests`): the song, and the button; it is on while the music plays
-    let song = Blocks::new().item(&image, "music", &s.title, &s.artist);
+    let song = if st.viz { Blocks::new().viz(16, TINT) } else { Blocks::new() }.item(&image, "music", &s.title, &s.artist);
     let button = Blocks::new().icon_button(if s.playing { "pause" } else { "play" }, "playpause", if s.playing { "Pause" } else { "Play" });
     let on: &[&str] = if s.playing { &["playing"] } else { &[] };
     Reply::card(card).pill(pill).with_widget("song", song, Blocks::new()).with_widget("playpause", button, Blocks::new()).rest(on)
@@ -110,11 +117,16 @@ fn reply_for(st: &mut State) -> Reply {
 fn handle(ev: &Event) -> Reply {
     STATE.with(|st| {
         let mut st = st.borrow_mut();
+        // (what the setting says, as of this event: the next card is drawn with it)
+        let viz = ev.setting_bool("visualizer", true);
+        let changed = std::mem::replace(&mut st.viz, viz) != viz;
         match ev.event.as_str() {
             "start" => {
                 st.sent = None;
                 Reply::nothing()
             }
+            // (the setting changed: what is on show is drawn again)
+            _ if changed && !st.sessions.is_empty() => reply_for(&mut st),
             "media" => {
                 // (what was told of a picture is kept; the players that are gone take theirs with them)
                 for s in &ev.sessions {
@@ -220,8 +232,10 @@ mod tests {
         STATE.with(|s| *s.borrow_mut() = State::default());
         let r = handle(&media(vec![session("b", "Playing", true)])).to_json();
         assert_eq!(r["rest"], json!(["playing"]));
-        assert_eq!(r["widgets"]["song"]["blocks"][0]["item"]["text"], "Playing");
-        assert_eq!(r["widgets"]["song"]["blocks"][0]["item"]["tile"], "data:image/png;base64,AAAA");
+        // (the bars of the sound, in front of the song)
+        assert_eq!(r["widgets"]["song"]["blocks"][0], json!({ "viz": 16, "color": TINT }));
+        assert_eq!(r["widgets"]["song"]["blocks"][1]["item"]["text"], "Playing");
+        assert_eq!(r["widgets"]["song"]["blocks"][1]["item"]["tile"], "data:image/png;base64,AAAA");
         assert_eq!(r["widgets"]["playpause"]["blocks"][0]["icon_button"]["icon"], "pause");
         // paused: it is not on, and the button offers play
         let r = handle(&media(vec![session("b", "Playing", false)])).to_json();
@@ -232,6 +246,22 @@ mod tests {
         // gone: nothing is on
         let r = handle(&media(vec![])).to_json();
         assert_eq!(r["rest"], json!([]));
+    }
+
+    #[test]
+    fn the_sound_is_shown_as_three_bars_unless_the_setting_says_not() {
+        STATE.with(|s| *s.borrow_mut() = State::default());
+        let r = handle(&media(vec![session("b", "Playing", true)])).to_json();
+        assert_eq!(r["card"]["viz"], TINT);
+        // the setting off: no bars on the card or the widget, and what is on show is drawn again at once
+        let mut off = action("noop", json!({}));
+        off.settings = json!({ "visualizer": false });
+        let r = handle(&off).to_json();
+        assert!(r["card"].get("viz").is_none());
+        assert_eq!(r["widgets"]["song"]["blocks"][0]["item"]["text"], "Playing");
+        // on again
+        let r = handle(&media(vec![session("b", "Playing", true)])).to_json();
+        assert_eq!(r["card"]["viz"], TINT);
     }
 
     #[test]

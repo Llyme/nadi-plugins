@@ -2,7 +2,8 @@
 -- Calendar: the events of a calendar link (.ics: Google Calendar, Outlook, iCloud). It reads the link itself (`net`: the host of the
 -- address in its setting, nothing else) every few minutes, and NADI turns the feed into events (`nadi.ics`). At rest: the date and the
 -- time (NADI keeps the clock ticking), and what is next in its tip. Open: a month, a day picked on it, the events of that day. A banner
--- shortly before an event starts.
+-- shortly before an event starts. And, if asked, a small banner now and then that says the time (what the Time plugin was): it lines
+-- up with the clock (every 30 minutes means :00 and :30), once each.
 
 local LISTED = 6
 local LOOK_MS = 15000 -- how often it looks at the clock
@@ -20,6 +21,7 @@ local last_fetch: number? = nil
 local fetching = false
 local problem: string? = nil
 local url_seen = ""
+local chimed: string? = nil -- the day and minute of the last time said: once each
 
 local function of_day(n: number, tz: number)
 	return nadi.time((n * 86400 + 43200) * 1000 - tz * 60000, tz)
@@ -180,6 +182,12 @@ local function widget(ev)
 	}
 end
 
+-- the time, said in a small banner
+local function chime(ev, ambient: boolean)
+	local t = nadi.time(ev.now, ev.tz_offset or 0)
+	return { text = clock(t, ev.settings.h24 == true), priority = 10, ambient = ambient, pill = { icon = "clock", right = t.wday .. ", " .. t.mon .. " " .. t.day, look = "big", ms = 4000 } }
+end
+
 local function ask(ev, out)
 	local url = string.match(ev.settings.url or "", "^%s*(.-)%s*$") or ""
 	if url == "" then
@@ -228,6 +236,8 @@ function handle(ev)
 			end
 		elseif a == "open" then
 			go_to(today_of(now, tz), tz)
+		elseif a == "say_time" then
+			out.say = { chime(ev, false) }
 		end
 	elseif e == "tick" then
 		local url = ev.settings.url or ""
@@ -241,6 +251,18 @@ function handle(ev)
 		end
 	else
 		return nil
+	end
+	-- the time, at the marks of the clock it was asked to say it at
+	local every = ev.settings.chime or 0
+	if every > 0 and e ~= "action" then
+		local t = nadi.time(now, tz)
+		local minute = t.hour * 60 + t.minute
+		local mark = t.days .. ":" .. minute
+		if minute % every == 0 and chimed ~= mark then
+			chimed = mark
+			out.say = out.say or {}
+			table.insert(out.say, chime(ev, true))
+		end
 	end
 	if ev.settings.remind ~= false then
 		local lead = math.max(1, ev.settings.lead_min or 15) * 60000

@@ -1,5 +1,7 @@
 {
   "name": "NADI plugins",
-  "about": "Time, Calendar and some examples for NADI.",
-  "order": ["ics-calendar", "time"]
+  "about": "Calendar and some examples for NADI.",
+  "order": [
+    "ics-calendar"
+  ]
 }

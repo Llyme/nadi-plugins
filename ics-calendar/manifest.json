@@ -1,8 +1,8 @@
 {
   "id": "ics-calendar",
   "name": "Calendar",
-  "description": "The events of a calendar link (.ics: Google Calendar, Outlook, iCloud), the date and time, a month you open from it, and a banner shortly before an event.",
-  "version": "5.0.0",
+  "description": "The events of a calendar link (.ics: Google Calendar, Outlook, iCloud), the date and time, a month you open from it, a banner shortly before an event, and, if you like, one that says the time now and then.",
+  "version": "5.1.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -32,6 +32,41 @@
       "label": "24-hour clock",
       "type": "toggle",
       "default": false
+    },
+    "chime": {
+      "label": "Say the time",
+      "type": "choice",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "Never"
+        },
+        {
+          "value": 15,
+          "label": "Every 15 minutes"
+        },
+        {
+          "value": 30,
+          "label": "Every 30 minutes"
+        },
+        {
+          "value": 60,
+          "label": "Every hour"
+        },
+        {
+          "value": 120,
+          "label": "Every 2 hours"
+        },
+        {
+          "value": 180,
+          "label": "Every 3 hours"
+        },
+        {
+          "value": 360,
+          "label": "Every 6 hours"
+        }
+      ]
     },
     "week_start": {
       "label": "Week starts on",
@@ -66,6 +101,12 @@
       "description": "The clock and the date; open, the month",
       "place": "top-right",
       "rank": 10
+    }
+  ],
+  "actions": [
+    {
+      "id": "say_time",
+      "label": "Say the time now"
     }
   ]
 }

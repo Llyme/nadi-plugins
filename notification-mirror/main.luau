@@ -2,9 +2,14 @@
 -- Notification Mirror: other apps' Windows notifications (Discord, Viber, ...) as banners. Pressing a banner opens the app it came
 -- from. It reads the `notifications` sensor. Viber draws a popup of its own instead of a toast, with no text to read, so for Viber
 -- it only notices that the popup came (a small tool window titled "ViberPC") and says there is a new message.
+--
+-- Its widget, a bell, is where the banners come out (drag it to move them); its panel lists the last ones. A dot shows on the bell
+-- until its panel is opened.
 
 local popups = {} -- the Viber popups at the last look
 local primed = false
+local recent = {} -- the last notifications, newest last: { title, body, app, at }
+local unseen = false
 
 -- what pressing a banner opens, and the name a pile of them goes under
 local function link_for(app: string): (string, string)
@@ -31,19 +36,62 @@ local function words(t): (string, string)
 	return title, body
 end
 
+local function ago(ms: number): string
+	local m = ms // 60000
+	if m < 1 then
+		return "Now"
+	elseif m < 60 then
+		return m .. "m"
+	end
+	return (m // 60) .. "h"
+end
+
+local function remember(title: string, body: string, app: string, now: number)
+	table.insert(recent, { title = title, body = body, app = app, at = now })
+	while #recent > 8 do
+		table.remove(recent, 1)
+	end
+	unseen = true
+end
+
+-- the bell, and its panel of the last ones
+local function widget(now: number)
+	local rows = {}
+	for i = #recent, 1, -1 do
+		local n = recent[i]
+		local sub = if n.app ~= "" and n.app ~= n.title then n.app .. " · " .. n.body else n.body
+		table.insert(rows, { title = n.title, sub = sub, right = ago(now - n.at) })
+	end
+	local body = if #rows > 0
+		then { { kind = "list", rows = rows } }
+		else { { kind = "strip", text = "Nothing lately. Drag the bell to where notifications should come out.", tone = "low" } }
+	return {
+		peek = { icon = "bell", dot = if unseen then true else nil },
+		panel = { title = "Notifications", sub = if #recent > 0 then #recent .. " lately" else "Nothing lately", tile = { icon = "bell", color = "#8e8e96" }, body = body },
+		tip = "Notifications",
+	}
+end
+
 function handle(ev)
 	if ev.event == "start" then
-		popups, primed = {}, false
+		popups, primed, recent, unseen = {}, false, {}, false
+		return { widgets = { inbox = widget(ev.now) } }
+	elseif ev.event == "open" then
+		if ev.widget == "inbox" and ev.open == true then
+			unseen = false
+		end
+		return { widgets = { inbox = widget(ev.now) } }
 	elseif ev.event == "notifications" then
 		local says = {}
 		for _, t in ev.notifications or {} do
 			local title, body = words(t)
 			local open, group = link_for(t.app)
 			if body ~= "" then
+				remember(title, body, t.app or "", ev.now)
 				table.insert(says, { text = body, title = title, priority = 0, open = open, group = if group ~= "" then group else nil })
 			end
 		end
-		return if #says > 0 then { say = says } else nil
+		return if #says > 0 then { say = says, widgets = { inbox = widget(ev.now) } } else nil
 	elseif ev.event == "processes" then
 		local now, fresh = {}, false
 		if ev.settings.viber ~= false then
@@ -58,7 +106,8 @@ function handle(ev)
 		end
 		popups, primed = now, true
 		if fresh then
-			return { say = { { text = "New message", title = "Viber", priority = 0, open = "viber://chats", group = "Viber" } } }
+			remember("Viber", "New message", "Viber", ev.now)
+			return { say = { { text = "New message", title = "Viber", priority = 0, open = "viber://chats", group = "Viber" } }, widgets = { inbox = widget(ev.now) } }
 		end
 	end
 	return nil

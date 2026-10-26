@@ -67,3 +67,23 @@ function tests.without_a_link_it_says_where_to_put_one()
 	check(r.fetch == nil, "nothing to read")
 	check(string.find(r.widgets.calendar.panel.body[3].text, "No calendar link", 1, true) ~= nil, "says so")
 end
+
+function tests.it_says_the_time_at_the_marks_when_asked()
+	handle(ev("start", T))
+	local function at(now: number, every: number)
+		local e = ev("tick", now)
+		e.settings.chime = every
+		local r = handle(e)
+		return (r and r.say) or {}
+	end
+	eq(#at(T, 0), 0, "never, by default")
+	local s = at(T, 30)
+	eq(s[1].text, "3:30 PM", "at :30")
+	eq(s[1].pill.right, "Fri, Oct 9", "the date")
+	eq(s[1].ambient, true, "it can wait")
+	eq(#at(T + 5000, 30), 0, "once")
+	eq(#at(T + 60000, 30), 0, "3:31 is no mark")
+	local r = handle(ev("action", T, { action = "say_time" }))
+	eq(r.say[1].text, "3:30 PM", "now, when pressed")
+	eq(r.say[1].ambient, false, "pressed: at once")
+end

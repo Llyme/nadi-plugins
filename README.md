@@ -11,12 +11,11 @@ To install, open Settings > Plugins in NADI: this repository is listed there; ti
 | `downloads` | Luau | What your browsers, Steam and qBittorrent are downloading. |
 | `eyes` | face | Two eyes that follow the cursor, blink, have moods, and dance to the music. |
 | `games` | Luau | The game you are playing, for how long, and how it runs. |
-| `ics-calendar` | Luau | The date and time, a month view, and banners before the events of a calendar link. |
+| `ics-calendar` | Luau | The date and time, a month view, banners before the events of a calendar link, and, if you like, one that says the time now and then. |
 | `now-playing` | Luau | What is playing, with play, skip, seek and speed, and three bars that dance with the sound. |
 | `page-reader` | Luau | A section for each page you have open, with what it says (needs the NADI browser extension). |
 | `sound-light` | face | An aura of soft lights that dances to what plays. |
 | `system-meters` | Luau | Bars for the CPU, the memory and the graphics card, a ring for each open, and a banner when the processor stays busy. |
-| `time` | Luau | Says what time it is now and then. |
 | `notification-mirror` | Luau | Other apps' notifications (Discord, Viber, ...) as banners. |
 | `work` | Luau | What you work on: your editor, your project's git state, your hours. |
 | `audio-meter`, `game-clock`, `weather` | Luau, examples | Small examples to start from. |

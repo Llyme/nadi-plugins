@@ -1,16 +1,38 @@
 {
   "id": "system-meters",
-  "name": "System meters",
-  "description": "How busy the CPU, the memory and the graphics card are: three thin bars in the head, or three small circles, with the numbers in a tooltip, and a ring for each that waits in the tray.",
-  "version": "2.1.0",
-  "kind": "wasm",
-  "tile": {"name": "System", "icon": "sliders", "tint": "#5ac8e6", "sizes": ["wide", "small"], "widget": "rings", "idle": "Right now"},
-  "module": "system-meters.wasm",
+  "name": "System Meters",
+  "description": "How busy the CPU, the memory and the graphics card are: three thin bars, open a ring for each, and a banner when the processor stays busy.",
+  "version": "3.1.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
-  "permissions": { "system": true },
-  "source": { "when": "always" },
+  "permissions": {
+    "system": true
+  },
   "widgets": [
-    { "id": "bars", "name": "Bars", "place": "right", "rank": 50, "width": 76 },
-    { "id": "rings", "name": "Circles", "place": "right", "rank": 52, "width": 100, "start": false }
-  ]
+    {
+      "id": "meters",
+      "name": "System",
+      "description": "CPU, memory and graphics card",
+      "place": "right",
+      "rank": 50
+    }
+  ],
+  "banners": true,
+  "settings": {
+    "alert": {
+      "label": "Banner when the processor stays busy",
+      "type": "toggle",
+      "default": true
+    },
+    "limit": {
+      "label": "Busy above",
+      "type": "range",
+      "default": 90,
+      "min": 50,
+      "max": 100,
+      "step": 5,
+      "unit": "%"
+    }
+  }
 }

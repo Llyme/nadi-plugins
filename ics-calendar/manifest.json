@@ -1,45 +1,71 @@
 {
   "id": "ics-calendar",
   "name": "Calendar",
-  "description": "A calendar for the island: the events of a calendar link (.ics: Google Calendar, Outlook, iCloud), the date and time in the head, a month view you open from it, the next events on a card, and a banner shortly before one starts.",
-  "version": "4.1.0",
-  "kind": "wasm",
-  "tile": {"name": "Today", "icon": "calendar", "tint": "#4f8ff0", "sizes": ["wide", "small"], "idle": "No events", "look": "date"},
-  "module": "ics-calendar.wasm",
+  "description": "The events of a calendar link (.ics: Google Calendar, Outlook, iCloud), the date and time, a month you open from it, and a banner shortly before an event.",
+  "version": "5.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
   "banners": true,
+  "tick": "30s",
+  "budget": {
+    "call_ms": 400,
+    "memory_mb": 64
+  },
   "permissions": {
-    "calendar": true,
-    "calendar_past_days": 62,
-    "net": ["{{settings.url}}"]
+    "net": [
+      "{{settings.url}}"
+    ]
   },
-  "source": {
-    "http": "{{settings.url}}",
-    "every": "{{settings.poll_min}}m",
-    "format": "ics",
-    "when": "always",
-    "max_kb": 8000
-  },
-  "needs": ["url"],
-  "setup": "Paste the link of a calendar (.ics) in the setting below.",
-  "status": "{{count}} events read.",
-  "widgets": [
-    { "id": "date", "name": "Date and time", "place": "left", "rank": 10, "width": 118, "interactive": true }
-  ],
   "settings": {
-    "url": { "label": "Calendar link (.ics)", "type": "text", "default": "" },
-    "poll_min": { "label": "Look again every (minutes)", "type": "number", "default": 10 },
-    "h24": { "label": "24-hour clock", "type": "toggle", "default": false },
+    "url": {
+      "label": "Calendar link (.ics)",
+      "type": "text",
+      "default": ""
+    },
+    "poll_min": {
+      "label": "Look again every (minutes)",
+      "type": "number",
+      "default": 10
+    },
+    "h24": {
+      "label": "24-hour clock",
+      "type": "toggle",
+      "default": false
+    },
     "week_start": {
       "label": "Week starts on",
       "type": "choice",
       "default": 0,
       "options": [
-        { "value": 0, "label": "Sunday" },
-        { "value": 1, "label": "Monday" }
+        {
+          "value": 0,
+          "label": "Sunday"
+        },
+        {
+          "value": 1,
+          "label": "Monday"
+        }
       ]
     },
-    "remind": { "label": "Banner before an event", "type": "toggle", "default": true },
-    "lead_min": { "label": "How long before (minutes)", "type": "number", "default": 15 }
-  }
+    "remind": {
+      "label": "Banner before an event",
+      "type": "toggle",
+      "default": true
+    },
+    "lead_min": {
+      "label": "How long before (minutes)",
+      "type": "number",
+      "default": 15
+    }
+  },
+  "widgets": [
+    {
+      "id": "calendar",
+      "name": "Date and Time",
+      "description": "The clock and the date; open, the month",
+      "place": "top-right",
+      "rank": 10
+    }
+  ]
 }

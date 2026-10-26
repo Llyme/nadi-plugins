@@ -1,17 +1,34 @@
 {
   "id": "eyes",
   "name": "Eyes",
-  "description": "The two eyes of the island: they blink, look at the cursor, squash and stretch as it moves, glance around when it rests, and show moods. They can bounce to the beat of what you play, and send a ripple out for each hit of the bass.",
-  "version": "2.0.1",
+  "description": "Two eyes that blink, look at your cursor, squash and stretch as it moves, glance around when it rests, and show moods. With sound, they bob and sway to the beat, and send a ripple across the screen for each hit of the bass.",
+  "version": "3.0.0",
   "kind": "face",
+  "look": "eyes",
   "default_on": false,
-  "permissions": { "audio": true, "cursor": true },
-  "faces": [
-    { "id": "island", "slot": "island", "file": "face.js" },
-    { "id": "head", "slot": "widget", "file": "face.js", "name": "Eyes", "place": "center", "rank": 20, "width": 72, "shared": true }
-  ],
+  "permissions": {
+    "audio": true,
+    "cursor": true
+  },
   "settings": {
-    "react": { "label": "React to sound", "type": "toggle", "default": true },
-    "rings": { "label": "Ripples on the bass", "type": "toggle", "default": true }
-  }
+    "react": {
+      "label": "React to sound",
+      "type": "toggle",
+      "default": true
+    },
+    "rings": {
+      "label": "Ripples on the bass",
+      "type": "toggle",
+      "default": true
+    }
+  },
+  "widgets": [
+    {
+      "id": "eyes",
+      "name": "Eyes",
+      "description": "The eyes",
+      "place": "top",
+      "rank": 20
+    }
+  ]
 }

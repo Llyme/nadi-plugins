@@ -1,10 +1,10 @@
 {
   "id": "page-reader",
   "name": "Page Reader",
-  "description": "A card in the expanded island for each page you have open, with what the page says (needs the NADI browser extension).",
-  "version": "2.0.0",
-  "kind": "wasm",
-  "module": "page-reader.wasm",
+  "description": "A section for each page you have open, with what the page says (needs the NADI browser extension).",
+  "version": "3.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
   "permissions": {
     "processes": true,
@@ -12,9 +12,24 @@
     "programs": true,
     "browser": true
   },
-  "source": { "when": "always" },
-  "budget": { "call_ms": 20, "memory_mb": 32 },
+  "budget": {
+    "call_ms": 60,
+    "memory_mb": 32
+  },
   "settings": {
-    "images": { "label": "Show the page's main picture", "type": "toggle", "default": true }
-  }
+    "images": {
+      "label": "Show the page's main picture",
+      "type": "toggle",
+      "default": true
+    }
+  },
+  "widgets": [
+    {
+      "id": "pages",
+      "name": "Pages",
+      "description": "What you are reading",
+      "place": "left",
+      "rank": 40
+    }
+  ]
 }

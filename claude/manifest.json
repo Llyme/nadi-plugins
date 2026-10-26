@@ -1,16 +1,32 @@
 {
   "id": "claude",
   "name": "Claude",
-  "description": "Your Claude Code sessions as cards for as long as they run (and the Claude desktop app while it runs), a banner when a session changes state (with Allow and Deny on it when one asks), and how much of your Claude 5-hour and 7-day limits you have used.",
-  "version": "3.4.0",
-  "kind": "bundle",
-  "tile": {"name": "Claude", "icon": "claude", "tint": "#d97757", "sizes": ["small", "wide"], "idle": "all quiet", "look": "status", "picture": "claude-code.gif"},
+  "description": "Your Claude Code sessions for as long as they run (and the Claude desktop app), a banner when a session changes state (with Allow and Deny when one asks), and how much of your Claude 5-hour and 7-day limits you have used.",
+  "version": "4.0.0",
+  "kind": "luau",
+  "main": "main.luau",
+  "default_on": false,
+  "banners": true,
+  "tick": "5s",
   "replaces": [
     "claude-code",
     "claude-usage"
   ],
-  "default_on": false,
-  "banners": true,
+  "permissions": {
+    "claude": true,
+    "claude_answer": true,
+    "processes": true,
+    "titles": true,
+    "programs": true,
+    "net": [
+      "api.anthropic.com",
+      "console.anthropic.com"
+    ],
+    "open": [
+      "https://claude.ai/oauth/authorize"
+    ],
+    "storage": true
+  },
   "settings": {
     "alerts": {
       "label": "Banners when a session changes",
@@ -52,10 +68,22 @@
       "type": "choice",
       "default": 10,
       "options": [
-        { "value": 0, "label": "Never skip" },
-        { "value": 10, "label": "10 seconds" },
-        { "value": 30, "label": "30 seconds" },
-        { "value": 60, "label": "1 minute" }
+        {
+          "value": 0,
+          "label": "Never skip"
+        },
+        {
+          "value": 10,
+          "label": "10 seconds"
+        },
+        {
+          "value": 30,
+          "label": "30 seconds"
+        },
+        {
+          "value": 60,
+          "label": "1 minute"
+        }
       ]
     },
     "usage": {
@@ -73,101 +101,59 @@
       "type": "choice",
       "default": 20,
       "options": [
-        { "value": 10, "label": "10 seconds" },
-        { "value": 20, "label": "20 seconds" },
-        { "value": 30, "label": "30 seconds" },
-        { "value": 60, "label": "1 minute" },
-        { "value": 120, "label": "2 minutes" }
+        {
+          "value": 10,
+          "label": "10 seconds"
+        },
+        {
+          "value": 20,
+          "label": "20 seconds"
+        },
+        {
+          "value": 30,
+          "label": "30 seconds"
+        },
+        {
+          "value": 60,
+          "label": "1 minute"
+        },
+        {
+          "value": 120,
+          "label": "2 minutes"
+        }
       ]
     }
   },
   "actions": [
     {
-      "part": "usage",
       "id": "usage_login",
       "label": "Sign In",
       "ask": "Paste the code the Claude page shows",
       "then": "usage_finish"
     },
     {
-      "part": "sessions",
       "id": "answer_on",
       "label": "Set Up Answering"
     },
     {
-      "part": "sessions",
       "id": "answer_off",
       "label": "Remove Answering"
     }
   ],
   "widgets": [
     {
-      "part": "sessions",
-      "id": "needs",
-      "name": "Needs you",
-      "place": "left",
-      "rank": 39,
-      "width": 90,
-      "start": false
-    },
-    {
-      "part": "usage",
-      "id": "bars",
-      "name": "Bars",
-      "place": "right",
-      "rank": 40,
-      "width": 68
-    },
-    {
-      "part": "usage",
-      "id": "rings",
-      "name": "Circles",
-      "place": "right",
-      "rank": 42,
-      "width": 64,
-      "start": false
-    }
-  ],
-  "parts": [
-    {
       "id": "sessions",
-      "module": "sessions.wasm",
-      "crate": "claude-code",
-      "permissions": {
-        "claude": true,
-        "claude_answer": true,
-        "processes": true,
-        "titles": true,
-        "programs": true
-      }
+      "name": "Claude Sessions",
+      "description": "How your sessions stand, the one that needs you first",
+      "place": "top",
+      "rank": 39
     },
     {
       "id": "usage",
-      "module": "usage.wasm",
-      "crate": "claude-usage",
-      "tick": "5s",
-      "permissions": {
-        "net": [
-          "api.anthropic.com",
-          "console.anthropic.com"
-        ],
-        "open": [
-          "https://claude.ai/oauth/authorize"
-        ],
-        "storage": true
-      }
-    }
-  ],
-  "rests": [
-    {
-      "id": "needs",
-      "name": "Claude",
-      "description": "Which session needs you, and how much of your limits is used.",
-      "when": "While a session needs you",
-      "priority": 70,
-      "left": "claude-sessions:needs",
-      "center": "eyes:head",
-      "right": "claude-usage:bars"
+      "name": "Claude Usage",
+      "description": "How much of your 5-hour and 7-day limits is used",
+      "place": "right",
+      "rank": 40
     }
   ]
 }

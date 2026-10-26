@@ -1,11 +1,10 @@
 {
   "id": "work",
   "name": "Work",
-  "description": "What you work on: your editor, your hours, and a pill for the session you are in.",
-  "version": "2.1.1",
-  "kind": "wasm",
-  "tile": {"name": "Work", "icon": "code", "tint": "#6d6d78", "sizes": ["small", "wide"], "idle": "not working"},
-  "module": "work.wasm",
+  "description": "What you work on: your editor and its project, your hours, and the session you are in.",
+  "version": "3.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
   "permissions": {
     "processes": true,
@@ -26,37 +25,13 @@
       "git -C * ls-files --others --exclude-standard"
     ]
   },
-  "source": {
-    "when": "always"
-  },
   "widgets": [
     {
-      "id": "session",
-      "name": "Session",
-      "place": "left",
-      "rank": 40,
-      "width": 110,
-      "start": false
-    },
-    {
-      "id": "hours",
-      "name": "Time in it",
-      "place": "right",
-      "rank": 41,
-      "width": 56,
-      "start": false
-    }
-  ],
-  "rests": [
-    {
-      "id": "session",
+      "id": "work",
       "name": "Work",
-      "description": "What you are working on at the left, for how long at the right.",
-      "when": "While you are in a work session",
-      "priority": 30,
-      "left": "session",
-      "center": "",
-      "right": "hours"
+      "description": "The session you are in, and for how long",
+      "place": "bottom",
+      "rank": 30
     }
   ]
 }

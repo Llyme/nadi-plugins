@@ -2,45 +2,10 @@
   "id": "downloads",
   "name": "Downloads",
   "description": "What your browsers, Steam and qBittorrent are downloading right now.",
-  "version": "2.1.0",
-  "kind": "wasm",
-  "tile": {"name": "Downloads", "icon": "download", "tint": "#4f8ff0", "sizes": ["small", "wide"], "idle": "none right now", "look": "water"},
-  "module": "downloads.wasm",
+  "version": "3.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
-  "permissions": {
-    "downloads": true
-  },
-  "source": {
-    "when": "always"
-  },
-  "widgets": [
-    {
-      "id": "file",
-      "name": "File",
-      "place": "left",
-      "rank": 40,
-      "width": 110,
-      "start": false
-    },
-    {
-      "id": "speed",
-      "name": "Speed",
-      "place": "right",
-      "rank": 41,
-      "width": 56,
-      "start": false
-    }
-  ],
-  "rests": [
-    {
-      "id": "downloading",
-      "name": "Downloads",
-      "description": "What is coming down at the left, how fast at the right.",
-      "when": "While something downloads",
-      "priority": 40,
-      "left": "file",
-      "center": "",
-      "right": "speed"
-    }
-  ]
+  "permissions": { "downloads": true },
+  "widgets": [{ "id": "downloads", "name": "Downloads", "description": "What is coming down, and how fast", "place": "bottom", "rank": 40 }]
 }

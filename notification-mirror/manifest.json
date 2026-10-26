@@ -1,10 +1,10 @@
 {
   "id": "toasts",
-  "name": "Notification mirror",
-  "description": "Shows the notifications of other apps (Discord, Viber, ...) on the island.",
-  "version": "2.0.0",
-  "kind": "wasm",
-  "module": "notification-mirror.wasm",
+  "name": "Notification Mirror",
+  "description": "Shows the notifications of other apps (Discord, Viber, ...) as banners. Pressing one opens the app.",
+  "version": "3.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
   "banners": true,
   "permissions": {
@@ -13,7 +13,6 @@
     "titles": true,
     "open": ["viber://", "discord://"]
   },
-  "source": { "when": "always" },
   "settings": {
     "viber": { "label": "Notice Viber's popup", "type": "toggle", "default": true }
   }

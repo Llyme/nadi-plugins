@@ -1,31 +1,14 @@
 {
   "id": "now-playing",
-  "name": "Now playing",
-  "description": "A pill and a card for what is playing, with play, skip, seek and speed, and three bars that dance with the sound.",
-  "version": "2.2.0",
-  "kind": "wasm",
-  "tile": {"name": "Now playing", "icon": "music", "tint": "#c23a7a", "sizes": ["large", "wide", "small"], "idle": "Nothing playing"},
-  "module": "now-playing.wasm",
+  "name": "Now Playing",
+  "description": "What is playing, with play, skip, seek and speed, and three bars that dance with the sound.",
+  "version": "3.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
   "permissions": { "media": true, "media_art": true, "media_control": true, "viz": true },
   "settings": {
     "visualizer": { "label": "Show the sound as three bars", "type": "toggle", "default": true }
   },
-  "source": { "when": "always" },
-  "widgets": [
-    { "id": "song", "name": "Song", "place": "left", "rank": 40, "width": 120, "start": false },
-    { "id": "playpause", "name": "Play / pause", "place": "right", "rank": 41, "width": 30, "interactive": true, "start": false }
-  ],
-  "rests": [
-    {
-      "id": "playing",
-      "name": "Now playing",
-      "description": "The song at the left, play and pause at the right.",
-      "when": "While something plays",
-      "priority": 60,
-      "left": "song",
-      "center": "",
-      "right": "playpause"
-    }
-  ]
+  "widgets": [{ "id": "song", "name": "Now Playing", "description": "The song, its cover and play/pause", "place": "top", "rank": 40 }]
 }

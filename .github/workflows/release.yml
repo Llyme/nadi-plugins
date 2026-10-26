@@ -13,11 +13,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - name: Test
-        run: cargo test --workspace
       - name: Build
         run: ./build.ps1
       - name: Release

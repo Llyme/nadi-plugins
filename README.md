@@ -1,34 +1,33 @@
 # NADI plugins
 
-The official plugins for [NADI](https://github.com/Llyme/not-another-dynamic-island), and the Rust SDK to write your own.
+The official plugins for [NADI](https://github.com/Llyme/not-another-dynamic-island): Luau scripts, and two faces.
 
-To install, open Settings > Plugins in NADI, press `+`, and paste `Llyme/nadi-plugins`.
+To install, open Settings > Plugins in NADI: this repository is listed there; tick a plugin to install it.
 
 | Plugin | Kind | What it does |
 |---|---|---|
-| `ics-calendar` | module | The events of a calendar link: date and time in the head, a month view, the next events, a banner before one starts. |
-| `time` | module | Says what time it is now and then, in a small pill. |
-| `audio-meter` | module, example | Hears the sound and draws a card that moves with it. |
-| `busy-meter` | module, example | A ring in the hub, a pill with buttons, a window of its own. |
-| `game-clock` | module, example | Says how long a game has been on. |
-| `notification-mirror` | module | The notifications of other apps (Discord, Viber, ...) as banners on the island. |
-| `work` | module | What you work on: your editor, your hours and its git state, with a pill for the session you are in. |
-| `games` | module | The game you are playing, for how long, and how it runs: frames per second, and what it uses of the CPU, the memory and the graphics card. |
-| `downloads` | module | What your browsers, Steam and qBittorrent are downloading, on one card. |
-| `claude` | module, in two parts | Your Claude Code sessions as cards (what each is doing, its context, its cost) with a pill when one needs you or has finished, and how much of your Claude 5-hour and 7-day limits is used (two bars in the head, a ring for each in the tray, a peek when one moves). The part that reaches Anthropic sees nothing of this PC, and the part that sees the sessions reaches nothing. |
-| `now-playing` | module | A pill and a card for what is playing, with play, skip, seek and speed. |
-| `eyes` | face | The two eyes of the island: they follow the cursor, blink, and move to the beat. |
-| `sound-light` | face | An aura behind the island that dances to what plays, and spills a little outside it. |
-| `system-meters` | module | Three thin bars for the CPU, the memory and the graphics card, with a ring for each in the tray. |
-| `weather` | declarative, example | A card and a pill from a web API. |
+| `battery` | Luau | How full the battery is, as a liquid in a vessel; banners when it runs low, is plugged in, is full. |
+| `claude` | Luau | Your Claude Code sessions (what each is doing, its context, its cost), a banner when one changes state (Allow and Deny when it asks), and your Claude limits. |
+| `downloads` | Luau | What your browsers, Steam and qBittorrent are downloading. |
+| `eyes` | face | Two eyes that follow the cursor, blink, have moods, and dance to the music. |
+| `games` | Luau | The game you are playing, for how long, and how it runs. |
+| `ics-calendar` | Luau | The date and time, a month view, and banners before the events of a calendar link. |
+| `now-playing` | Luau | What is playing, with play, skip, seek and speed, and three bars that dance with the sound. |
+| `page-reader` | Luau | A section for each page you have open, with what it says (needs the NADI browser extension). |
+| `sound-light` | face | An aura of soft lights that dances to what plays. |
+| `system-meters` | Luau | Bars for the CPU, the memory and the graphics card, a ring for each open, and a banner when the processor stays busy. |
+| `time` | Luau | Says what time it is now and then. |
+| `notification-mirror` | Luau | Other apps' notifications (Discord, Viber, ...) as banners. |
+| `work` | Luau | What you work on: your editor, your project's git state, your hours. |
+| `audio-meter`, `game-clock`, `weather` | Luau, examples | Small examples to start from. |
 
-Every folder with a `manifest.json` is one plugin. The format is in [PLUGINS.md](https://github.com/Llyme/not-another-dynamic-island/blob/main/PLUGINS.md).
+Every folder with a `manifest.json` is one plugin. The format is in [native/PLUGINS.md](https://github.com/Llyme/not-another-dynamic-island/blob/main/native/PLUGINS.md).
 
 ```
-powershell ./build.ps1     # dist/<id>/ for each plugin, and nadi-plugins.tar.gz
-cargo test                 # a module is a function from an event to a reply, so its logic is an ordinary Rust test
+powershell ./build.ps1     # dist/<id>/ for each plugin, and nadi-plugins.tar.gz (tests run when nadi-plugin is on the PATH)
+nadi-plugin test battery   # a plugin's test.luau
 ```
 
 Tag a version (`v1.0.0`) and the workflow attaches `nadi-plugins.tar.gz` to a release. NADI installs from it.
 
-A plugin of your own: copy `busy-meter`, change `handle`, and add a folder with its `manifest.json`.
+A plugin of your own: copy `game-clock`, change `handle`, and add a folder with its `manifest.json`.

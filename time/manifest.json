@@ -1,18 +1,12 @@
 {
   "id": "time",
   "name": "Time",
-  "description": "The island says what time it is now and then, in a small pill.",
-  "version": "2.0.0",
-  "kind": "wasm",
-  "module": "time.wasm",
+  "description": "Says what time it is now and then, in a small banner.",
+  "version": "3.0.0",
+  "kind": "luau",
+  "main": "main.luau",
   "default_on": false,
   "banners": true,
-  "permissions": {
-    "sees": [
-      { "name": "clock" }
-    ]
-  },
-  "source": { "when": "always" },
   "settings": {
     "every": {
       "label": "Every",

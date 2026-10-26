@@ -1,16 +1,23 @@
 {
   "id": "sound-light",
-  "name": "Sound light",
-  "description": "An aura that lives in the island and dances to what you play: soft lights that follow the music, ripples on the bass, a warm halo for a voice. A little of it spills out of the island.",
-  "version": "2.0.0",
+  "name": "Sound Light",
+  "description": "An aura that dances to what you play: soft lights that follow the music inside a widget (the eyes', else the one nearest the top's middle), and a warm halo for a voice.",
+  "version": "3.0.0",
   "kind": "face",
+  "look": "aura",
   "default_on": false,
-  "permissions": { "audio": true },
-  "faces": [
-    { "id": "aura", "slot": "backdrop", "file": "face.js" }
-  ],
+  "permissions": {
+    "audio": true
+  },
   "settings": {
-    "brightness": { "label": "Max brightness (0 = off)", "type": "range", "min": 0, "max": 100, "step": 5, "unit": "%", "default": 100 },
-    "ambient": { "label": "Light outside the island", "type": "range", "min": 0, "max": 100, "step": 5, "unit": "%", "default": 60 }
+    "brightness": {
+      "label": "Brightness",
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 100
+    }
   }
 }

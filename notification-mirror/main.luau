@@ -62,7 +62,9 @@ local function widget(now: number)
 		local sub = if n.app ~= "" and n.app ~= n.title then n.app .. " · " .. n.body else n.body
 		table.insert(rows, { title = n.title, sub = sub, right = ago(now - n.at) })
 	end
-	local body = if #rows > 0 then { { kind = "list", rows = rows } } else { { kind = "strip", text = "Nothing lately", tone = "low" } }
+	local body = if #rows > 0
+		then { { kind = "list", rows = rows }, { kind = "buttons", items = { { label = "Clear", action = "clear" } } } }
+		else { { kind = "strip", text = "Nothing lately", tone = "low" } }
 	return {
 		peek = { icon = "bell", dot = if unseen then true else nil },
 		panel = { body = body },
@@ -74,6 +76,12 @@ function handle(ev)
 	if ev.event == "start" then
 		popups, primed, recent, unseen = {}, false, {}, false
 		return { widgets = { inbox = widget(ev.now) } }
+	elseif ev.event == "action" then
+		if ev.action == "clear" then
+			recent, unseen = {}, false
+			return { widgets = { inbox = widget(ev.now) } }
+		end
+		return nil
 	elseif ev.event == "open" then
 		if ev.widget == "inbox" and ev.open == true then
 			unseen = false

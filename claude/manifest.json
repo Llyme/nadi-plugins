@@ -2,7 +2,7 @@
   "id": "claude",
   "name": "Claude",
   "description": "Your Claude Code sessions for as long as they run (and the Claude desktop app), a banner when a session changes state (with Allow and Deny when one asks), and how much of your Claude 5-hour and 7-day limits you have used.",
-  "version": "4.1.0",
+  "version": "4.3.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -143,18 +143,12 @@
   "widgets": [
     {
       "id": "sessions",
-      "name": "Claude Sessions",
-      "description": "How your sessions stand, the one that needs you first",
+      "name": "Claude",
+      "description": "Your sessions, and your limits round them",
       "place": "top",
       "rank": 39,
-      "compact": true
-    },
-    {
-      "id": "usage",
-      "name": "Claude Usage",
-      "description": "How much of your 5-hour and 7-day limits is used",
-      "place": "right",
-      "rank": 40
+      "compact": true,
+      "large": true
     }
   ]
 }

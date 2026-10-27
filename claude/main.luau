@@ -324,7 +324,7 @@ local function front_is(exe: string, title: string): boolean
 end
 
 -- the sessions widget: at rest how they stand (the one that needs you first), open a section for each
-local function sessions_widget(now: number)
+local function sessions_widget(now: number, usage)
 	local list = {}
 	for _, s in sessions do
 		table.insert(list, { s = s, state = state_of(s, now) })
@@ -361,14 +361,22 @@ local function sessions_widget(now: number)
 			press = "focus:desktop",
 		})
 	end
+	-- (the limits, on top of the panel; round the icon, a ring each)
+	local top_rows = if usage then { { kind = "bars", items = usage.rows } } else {}
+	local rings = if usage then usage.rings else nil
+	local usage_tip = if usage then " · " .. usage.tip else ""
 	if #body == 0 then
-		-- (no sessions: idle, so NADI can hide it)
+		-- (no sessions: idle, so NADI can hide it, unless a limit is nearly used)
+		table.insert(top_rows, { kind = "strip", text = "No sessions", tone = "low" })
 		return {
-			idle = true,
-			peek = { live = { icon = "claude", tone = "idle" }, color = TILE },
-			panel = { body = { { kind = "strip", text = "No sessions", tone = "low" } } },
-			tip = "No sessions",
+			idle = if usage and usage.high then nil else true,
+			peek = { live = { icon = "claude", tone = "idle", rings = rings }, color = TILE },
+			panel = { body = top_rows, press = if usage then "usage_refresh" else nil },
+			tip = "No sessions" .. usage_tip,
 		}
+	end
+	for _, b in body do
+		table.insert(top_rows, b)
 	end
 	local top = list[1]
 	local tone = if top then top.state else "idle"
@@ -382,9 +390,9 @@ local function sessions_widget(now: number)
 	return {
 		-- (every session resting: idle, so NADI can hide it)
 		idle = if tone == "idle" then true else nil,
-		peek = { live = { icon = "claude", tone = tone, image = if tone == "working" then "own:claude-code.gif" else nil }, color = if waiting > 0 then AMBER else TILE, text = text, label = label, dot = waiting > 0 or nil, count = if #body > 1 then #body else nil },
-		panel = { title = if waiting > 0 then text else nil, body = body },
-		tip = label,
+		peek = { live = { icon = "claude", tone = tone, image = if tone == "working" then "own:claude-code.gif" else nil, rings = rings }, color = if waiting > 0 then AMBER else TILE, text = text, label = label, dot = waiting > 0 or nil, count = if #body > 1 then #body else nil },
+		panel = { title = if waiting > 0 then text else nil, body = top_rows },
+		tip = label .. usage_tip,
 	}
 end
 
@@ -834,31 +842,27 @@ local function answered(ev, out)
 	end
 end
 
-local function usage_widget(now: number, wanted: boolean)
+-- the usage, for the one widget: a ring for each limit round its icon, bars for them on top of its panel, and its tip
+local function usage_of(now: number, wanted: boolean)
 	if not wanted or not snap.available then
-		return {}
+		return nil
 	end
-	local bars, rows, tip = {}, {}, {}
+	local rings, rows, tip = {}, {}, {}
 	for _, w in { { "5h", FIVE, snap.five }, { "7d", SEVEN, snap.seven } } do
 		local win = w[3]
 		if win and win.pct then
 			local back = reset_in(win.resets_at, now)
 			local color = bar_color(win.pct, w[2])
 			local pct = math.floor(win.pct + 0.5) .. "%"
-			table.insert(bars, { part = math.clamp(win.pct / 100, 0, 1), color = color })
+			table.insert(rings, { part = math.clamp(win.pct / 100, 0, 1), color = color })
 			table.insert(rows, { label = w[1], part = math.clamp(win.pct / 100, 0, 1), color = color, text = pct, sub = if back ~= "" then "Back in " .. back else "" })
 			table.insert(tip, w[1] .. " " .. pct)
 		end
 	end
-	if #bars == 0 then
-		return {}
+	if #rings == 0 then
+		return nil
 	end
-	local foot = if snap.error then "Not up to date: " .. snap.error else nil
-	return {
-		peek = { bars = bars, label = "Claude · " .. table.concat(tip, " · ") },
-		panel = { title = foot, body = { { kind = "bars", items = rows } }, press = "usage_refresh" },
-		tip = "Claude · " .. table.concat(tip, " · "),
-	}
+	return { rings = rings, rows = rows, tip = table.concat(tip, " · "), high = (snap.five and (snap.five.pct or 0) >= 80) or false }
 end
 
 local function note_of(wanted: boolean): any
@@ -879,7 +883,6 @@ function handle(ev)
 	local settings = ev.settings or {}
 	local wanted = settings.usage ~= false
 	local out: any = {}
-	local draw_sessions = false
 	local e = ev.event
 	if e == "start" then
 		sessions, seen, primed, front, desktop = {}, {}, false, nil, nil
@@ -900,7 +903,6 @@ function handle(ev)
 				desktop = { exe = if (w.path or "") ~= "" then w.path else w.exe, title = w.title or "" }
 			end
 		end
-		draw_sessions = true
 	elseif e == "claude" then
 		sessions = once_each(ev.claude)
 		local says, cancel = alerts(now, settings)
@@ -910,7 +912,6 @@ function handle(ev)
 		if #cancel > 0 then
 			out.cancel = cancel
 		end
-		draw_sessions = true
 	elseif e == "fetched" then
 		answered(ev, out)
 	elseif e == "tick" then
@@ -999,10 +1000,8 @@ function handle(ev)
 	else
 		return nil
 	end
-	out.widgets = { usage = usage_widget(now, wanted) }
-	if draw_sessions then
-		out.widgets.sessions = sessions_widget(now)
-	end
+	-- one widget: the sessions, the usage round them (the usage widget of before, taken away)
+	out.widgets = { usage = {}, sessions = sessions_widget(now, usage_of(now, wanted)) }
 	if out.note == nil then
 		out.note = note_of(wanted)
 	end

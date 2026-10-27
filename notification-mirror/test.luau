@@ -31,3 +31,11 @@ function tests.vibers_popup_is_noticed_once_it_comes()
 	eq(look({ 1, 2 }).say[1].title, "Viber", "a new one")
 	check(look({ 2 }) == nil, "the same")
 end
+
+function tests.clear_empties_the_list()
+	handle({ event = "start", now = 0, settings = {} })
+	handle({ event = "notifications", now = 0, settings = {}, notifications = { { app = "Mail", title = "", body = "Inbox" } } })
+	local r = handle({ event = "action", action = "clear", now = 0, settings = {} })
+	eq(r.widgets.inbox.panel.body[1].text, "Nothing lately", "empty again")
+	eq(r.widgets.inbox.peek.dot, nil, "no dot")
+end

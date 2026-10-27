@@ -207,7 +207,7 @@ end
 function tests.signed_out_it_says_how_to_sign_in()
 	local r = start(nil)
 	eq(r.note, "Not signed in", "note")
-	eq(r.widgets.usage, {}, "nothing")
+	eq(r.widgets.sessions.peek.live.rings, nil, "no rings")
 	check(r.fetch == nil, "no request")
 end
 
@@ -216,10 +216,12 @@ function tests.signed_in_it_asks_and_draws_what_comes_back()
 	eq(r.fetch[1].id, "usage", "asks")
 	eq(r.fetch[1].headers.Authorization, "Bearer ACC", "bearer")
 	r = fetched("usage", 200, { five_hour = { utilization = 42, resets_at = "2027-01-15T12:00:00Z" }, seven_day = { utilization = 18 } })
-	local w = r.widgets.usage
-	eq(#w.peek.bars, 2, "two bars")
-	eq(w.peek.bars[2].part, 0.18, "7d")
-	eq(w.tip, "Claude · 5h 42% · 7d 18%", "tip")
+	local w = r.widgets.sessions
+	eq(#w.peek.live.rings, 2, "two rings")
+	eq(w.peek.live.rings[2].part, 0.18, "7d")
+	eq(w.tip, "No sessions · 5h 42% · 7d 18%", "tip")
+	eq(w.panel.body[1].kind, "bars", "the limits on top")
+	eq(r.widgets.usage, {}, "no widget of its own")
 	eq(r.note, false, "no note")
 	check(r.say == nil, "the first numbers are not news")
 	r = fetched("usage", 200, {}, T0)

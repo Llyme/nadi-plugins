@@ -14,13 +14,13 @@ function tests.a_download_shows_how_far_and_how_fast()
 	eq(w.peek.ring.part, 0.2, "a fifth")
 	eq(w.peek.text, "1.9 MB/s", "speed")
 	eq(w.panel.body[2].rows[1].sub, "20% · 1.9 MB/s", "row")
-	eq(w.panel.sub, "1 downloading", "sub")
+	eq(w.panel.title, nil, "no head")
 end
 
 function tests.one_that_stands_still_goes_and_comes_back_when_it_moves()
 	look(0, { dl("a", "browser", 100, 1000) })
-	eq(look(6000, { dl("a", "browser", 100, 1000) }).widgets.downloads, {}, "stuck: gone")
-	eq(look(7000, { dl("a", "browser", 100, 1000) }).widgets.downloads, {}, "still stuck")
+	eq((look(6000, { dl("a", "browser", 100, 1000) }).widgets.downloads).idle, true, "stuck: gone (idle)")
+	eq((look(7000, { dl("a", "browser", 100, 1000) }).widgets.downloads).idle, true, "still stuck (idle)")
 	check(look(8000, { dl("a", "browser", 200, 1000) }).widgets.downloads.peek ~= nil, "moves: back")
 end
 
@@ -31,7 +31,7 @@ function tests.a_finished_one_stays_until_pressed_and_shows_its_file()
 	eq(w.panel.body[1].items[1].action, "done:a", "button")
 	local r = handle({ event = "action", action = "done:a", now = 2000, settings = {} })
 	eq(r.reveal, "C:\\Downloads\\a.bin", "shown")
-	eq(r.widgets.downloads, {}, "gone")
+	eq((r.widgets.downloads).idle, true, "gone (idle)")
 end
 
 function tests.steam_shows_no_progress()

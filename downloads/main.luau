@@ -164,7 +164,8 @@ end
 
 local function draw()
 	if #items == 0 then
-		return { widgets = { downloads = {} } }
+		-- (nothing coming in: idle, so NADI can hide it)
+		return { widgets = { downloads = { idle = true, peek = { icon = "download", text = "No downloads" }, tip = "No downloads" } } }
 	end
 	local active, done = {}, {}
 	for _, it in items do
@@ -219,8 +220,9 @@ local function draw()
 					color = TINT,
 					text = text,
 					label = if first then cut(first.name, 40) .. " · " .. meta(first) else sub,
+					count = if #active > 1 then #active else nil,
 				},
-				panel = { title = "Downloads", sub = sub, tile = { icon = "download", color = TINT, ring = part, ring_color = if part then TINT else nil }, body = body },
+				panel = { body = body },
 				tip = sub,
 			},
 		},

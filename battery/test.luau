@@ -26,8 +26,7 @@ function tests.the_widget_is_the_vessel_and_says_how_it_stands()
 	eq(w.peek.text, "64%", "peek text")
 	eq(w.peek.label, "64% · 3h 20m left", "peek label")
 	eq(w.peek.vessel, { level = 0.64, charging = false }, "vessel")
-	eq(w.panel.sub, "On battery · 3h 20m left", "sub")
-	eq(w.panel.tile.vessel, true, "tile is a vessel")
+	eq(w.panel.title, "On battery · 3h 20m left", "how it stands")
 	eq(w.panel.body[1].kind, "chips", "chips first")
 	eq(w.panel.body[2].kind, "stats", "no graph yet")
 	-- later, with the last hours, it has a graph
@@ -41,8 +40,7 @@ function tests.amber_when_low_red_when_critical_green_when_charging()
 	eq(at(T0, battery(10)).widgets.battery.peek.color, "#e87a7a", "red")
 	local r = at(T0, battery(5, { plugged = true, charging = true, minutes_to_full = 42, minutes_left = nadi.null }))
 	eq(r.widgets.battery.peek.color, "#5ac88c", "charging is green")
-	eq(r.widgets.battery.panel.sub, "Charging · 42 min to full", "charging sub")
-	eq(r.widgets.battery.panel.tile.bolt, true, "bolt")
+	eq(r.widgets.battery.panel.title, "Charging · 42 min to full", "charging")
 end
 
 function tests.it_says_when_it_runs_low_and_when_it_runs_out()
@@ -91,7 +89,7 @@ function tests.a_full_battery_says_so()
 	at(T0, battery(98, { plugged = true, charging = true }))
 	local s = said(at(T0 + 60000, battery(100, { plugged = true })))[1]
 	eq(s.text, "Fully charged", "full")
-	eq(s.pill.sub, "100% · you can unplug", "full sub")
+	eq(s.pill.sub, "100%", "full sub")
 end
 
 function tests.saver_and_wear_are_off_until_asked_for()

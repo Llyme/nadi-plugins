@@ -15,7 +15,7 @@ To install, open Settings > Plugins in NADI: this repository is listed there; ti
 | `now-playing` | Luau | What is playing, with play, skip, seek and speed, and three bars that dance with the sound. |
 | `page-reader` | Luau | A section for each page you have open, with what it says (needs the NADI browser extension). |
 | `sound-light` | face | An aura of soft lights that dances to what plays. |
-| `system-meters` | Luau | Bars for the CPU, the memory and the graphics card, a ring for each open, and a banner when the processor stays busy. |
+| `system-meters` | Luau | Bars for the CPU, the memory and the graphics card, and a ring for each open. |
 | `notification-mirror` | Luau | Other apps' notifications (Discord, Viber, ...) as banners. |
 | `work` | Luau | What you work on: your editor, your project's git state, your hours. |
 | `audio-meter`, `game-clock`, `weather` | Luau, examples | Small examples to start from. |

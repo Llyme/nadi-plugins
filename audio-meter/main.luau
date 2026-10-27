@@ -24,7 +24,7 @@ function handle(ev)
 		widgets = {
 			meter = {
 				peek = { viz = true, text = level, label = sub },
-				panel = { title = "Audio", sub = sub, tile = { icon = "wave" }, body = { { kind = "spectrum", values = shown } } },
+				panel = { body = { { kind = "spectrum", values = shown } } },
 				tip = sub,
 			},
 		},

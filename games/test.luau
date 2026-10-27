@@ -28,7 +28,7 @@ function tests.its_numbers_and_it_goes_when_its_process_ends()
 	eq(s.body[2].values[2], 7, "frame times")
 	eq(s.body[3].rows[1].title, "GPU", "gpu first")
 	r = handle({ event = "usage", now = 130000, settings = {}, usage = { { pid = 1, alive = false } } })
-	eq(r.widgets.game, {}, "gone")
+	eq((r.widgets.game).idle, true, "gone (idle)")
 	eq(r.quiet, false, "not quiet")
 end
 

@@ -135,7 +135,7 @@ local function panel(ev)
 	}
 	local url = ev.settings.url or ""
 	if string.match(url, "^%s*$") then
-		table.insert(body, { kind = "text", tone = "muted", text = "No calendar link yet. Paste one in this plugin's settings." })
+		table.insert(body, { kind = "text", tone = "muted", text = "No calendar link" })
 		return body
 	end
 	if problem then
@@ -177,7 +177,7 @@ local function widget(ev)
 	local now_t = nadi.time(ev.now, tz)
 	return {
 		peek = { clock = { h24 = h24, date = true }, icon = "calendar", color = TINT, text = clock(now_t, h24), label = tip },
-		panel = { title = "Calendar", sub = now_t.wday .. ", " .. now_t.mon .. " " .. now_t.day, tile = { icon = "calendar", color = TINT }, body = panel(ev) },
+		panel = { body = panel(ev) },
 		tip = tip,
 	}
 end

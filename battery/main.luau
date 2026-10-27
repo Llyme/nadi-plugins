@@ -141,7 +141,7 @@ local function banner_for(now, s)
 		table.insert(said, banner("On battery", about(now), tone, color, now, 3000, 40))
 	end
 	if now.plugged and p >= 99.5 and q < 99.5 and on("b_full", true) then
-		table.insert(said, banner("Fully charged", "100% · you can unplug", "full", GREEN, now, 4000, 40))
+		table.insert(said, banner("Fully charged", "100%", "full", GREEN, now, 4000, 40))
 	end
 	if not prev.saver and now.saver and on("b_saver", false) then
 		table.insert(said, banner("Battery saver on", round(p) .. "% · it dims the screen and slows the PC down", "saver", AMBER, now, 4000, 40))
@@ -235,7 +235,7 @@ function handle(ev)
 		widgets = {
 			battery = {
 				peek = { vessel = { level = percent / 100, charging = b.charging }, color = color, text = big, label = if left ~= "" then big .. " · " .. left else big },
-				panel = { title = "Battery", sub = sub_of(b), tile = liquid(b, color), body = body },
+				panel = { title = sub_of(b), body = body },
 				tip = sub_of(b),
 			},
 		},

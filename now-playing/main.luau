@@ -44,7 +44,8 @@ end
 local function draw(viz: boolean)
 	local s = primary()
 	if not s then
-		return { widgets = { song = {} } }
+		-- (nothing playing: idle, so NADI can hide it)
+		return { widgets = { song = { idle = true, peek = { icon = "music", text = "Nothing playing" }, tip = "Nothing playing" } } }
 	end
 	local cover = if (s.art_id or 0) ~= 0 then "media:" .. s.source .. ":" .. s.art_id else nil
 	local body: { any } = {}
@@ -77,6 +78,7 @@ local function draw(viz: boolean)
 	return {
 		widgets = {
 			song = {
+				idle = if s.playing then nil else true,
 				peek = {
 					image = cover,
 					icon = "music",

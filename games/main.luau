@@ -131,7 +131,8 @@ local function draw(now: number)
 	end
 	local front = games[1]
 	if not front then
-		return { widgets = { game = {} }, watch = {}, quiet = false }
+		-- (no game: idle, so NADI can hide it)
+		return { widgets = { game = { idle = true, peek = { icon = "gamepad", text = "No game" }, tip = "No game" } }, watch = {}, quiet = false }
 	end
 	local body = {}
 	for _, g in games do

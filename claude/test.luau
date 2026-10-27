@@ -73,7 +73,7 @@ tests = {}
 function tests.a_working_session_says_what_it_does()
 	local w = look(T0, { rich(session("a", "busy", T0 - 1000)), session("b", "idle", T0 - 5000000) }).widgets.sessions
 	eq(w.peek.text, "Working", "peek")
-	eq(w.peek.live, { icon = "claude", tone = "working" }, "live")
+	eq(w.peek.live, { icon = "claude", tone = "working", image = "own:claude-code.gif" }, "live")
 	local s = w.panel.body[1]
 	eq(s.title, "Fix the thing", "title")
 	eq(s.sub, "Editing lib.rs", "what it does")
@@ -142,7 +142,7 @@ function tests.a_session_stays_while_it_runs_and_goes_with_its_source()
 	local r = press("focus:f")
 	eq(r.focus.title, "nadi", "focus")
 	eq(look(T0 + 16 * 60000, { s }).widgets.sessions.panel.body[1].live.tone, "idle", "idle later")
-	eq(look(T0 + 20 * 60000, {}).widgets.sessions, {}, "gone")
+	eq((look(T0 + 20 * 60000, {}).widgets.sessions).idle, true, "gone (idle)")
 end
 
 function tests.banners_say_when_a_session_starts_and_finishes()
@@ -206,7 +206,7 @@ end
 
 function tests.signed_out_it_says_how_to_sign_in()
 	local r = start(nil)
-	eq(r.note, "Usage: sign in below to see how much of your limits is used.", "note")
+	eq(r.note, "Not signed in", "note")
 	eq(r.widgets.usage, {}, "nothing")
 	check(r.fetch == nil, "no request")
 end

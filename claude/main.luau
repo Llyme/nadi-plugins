@@ -362,7 +362,13 @@ local function sessions_widget(now: number)
 		})
 	end
 	if #body == 0 then
-		return {}
+		-- (no sessions: idle, so NADI can hide it)
+		return {
+			idle = true,
+			peek = { live = { icon = "claude", tone = "idle" }, color = TILE },
+			panel = { body = { { kind = "strip", text = "No sessions", tone = "low" } } },
+			tip = "No sessions",
+		}
 	end
 	local top = list[1]
 	local tone = if top then top.state else "idle"
@@ -374,8 +380,10 @@ local function sessions_widget(now: number)
 		else plural(#body, "session")
 	local label = if top then title_of(top.s) .. " · " .. select(2, activity(top.s, top.state)) else "Claude Desktop"
 	return {
-		peek = { live = { icon = "claude", tone = tone }, color = if waiting > 0 then AMBER else TILE, text = text, label = label, dot = waiting > 0 or nil },
-		panel = { title = "Claude", sub = if waiting > 0 then text else plural(#body, "session"), tile = { icon = "claude", color = TILE }, body = body },
+		-- (every session resting: idle, so NADI can hide it)
+		idle = if tone == "idle" then true else nil,
+		peek = { live = { icon = "claude", tone = tone, image = if tone == "working" then "own:claude-code.gif" else nil }, color = if waiting > 0 then AMBER else TILE, text = text, label = label, dot = waiting > 0 or nil, count = if #body > 1 then #body else nil },
+		panel = { title = if waiting > 0 then text else nil, body = body },
 		tip = label,
 	}
 end
@@ -779,7 +787,7 @@ local function answered(ev, out)
 		elseif ev.status == 401 then
 			failed("The sign-in was refused. Sign in again.", true)
 		elseif ev.status == 429 then
-			failed("Rate limited by the usage endpoint. Try again in a bit.", false)
+			failed("Rate limited by the usage endpoint", false)
 		else
 			failed(net(), false)
 		end
@@ -816,7 +824,7 @@ local function answered(ev, out)
 		elseif ev.status == 400 or ev.status == 401 then
 			failed("Claude did not accept that code. Start the sign-in again and paste the new one.", true)
 		elseif ev.status == 429 then
-			failed("Claude is rate limiting the sign-in. Try again in a minute.", false)
+			failed("Sign-in rate limited", false)
 		else
 			failed(net(), false)
 		end
@@ -845,10 +853,10 @@ local function usage_widget(now: number, wanted: boolean)
 	if #bars == 0 then
 		return {}
 	end
-	local foot = if snap.error then "Not up to date: " .. snap.error else "Press to refresh"
+	local foot = if snap.error then "Not up to date: " .. snap.error else nil
 	return {
 		peek = { bars = bars, label = "Claude · " .. table.concat(tip, " · ") },
-		panel = { title = "Claude Usage", sub = foot, tile = { icon = "claude", color = FIVE }, body = { { kind = "bars", items = rows } }, press = "usage_refresh" },
+		panel = { title = foot, body = { { kind = "bars", items = rows } }, press = "usage_refresh" },
 		tip = "Claude · " .. table.concat(tip, " · "),
 	}
 end
@@ -859,7 +867,7 @@ local function note_of(wanted: boolean): any
 	elseif snap.error then
 		return "Usage: " .. snap.error
 	elseif snap.needs_login then
-		return "Usage: sign in below to see how much of your limits is used."
+		return "Not signed in"
 	end
 	return false
 end

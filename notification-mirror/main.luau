@@ -62,12 +62,10 @@ local function widget(now: number)
 		local sub = if n.app ~= "" and n.app ~= n.title then n.app .. " · " .. n.body else n.body
 		table.insert(rows, { title = n.title, sub = sub, right = ago(now - n.at) })
 	end
-	local body = if #rows > 0
-		then { { kind = "list", rows = rows } }
-		else { { kind = "strip", text = "Nothing lately. Drag the bell to where notifications should come out.", tone = "low" } }
+	local body = if #rows > 0 then { { kind = "list", rows = rows } } else { { kind = "strip", text = "Nothing lately", tone = "low" } }
 	return {
 		peek = { icon = "bell", dot = if unseen then true else nil },
-		panel = { title = "Notifications", sub = if #recent > 0 then #recent .. " lately" else "Nothing lately", tile = { icon = "bell", color = "#8e8e96" }, body = body },
+		panel = { body = body },
 		tip = "Notifications",
 	}
 end

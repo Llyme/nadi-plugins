@@ -15,7 +15,7 @@ end
 function tests.the_bell_is_there_from_the_start()
 	local r = handle({ event = "start", now = 0, settings = {} })
 	eq(r.widgets.inbox.peek.icon, "bell", "bell")
-	eq(r.widgets.inbox.panel.sub, "Nothing lately", "empty")
+	eq(r.widgets.inbox.panel.body[1].text, "Nothing lately", "empty")
 end
 
 function tests.vibers_popup_is_noticed_once_it_comes()

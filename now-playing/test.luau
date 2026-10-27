@@ -25,7 +25,7 @@ function tests.it_follows_the_player_that_plays()
 	eq(w.panel.body[2].items[2].action, "toggle", "transport")
 	eq(w.panel.body[3].value, 1.5, "speed")
 	eq(w.panel.body[4].rows[1].title, "Paused", "the other player")
-	eq(media({}).widgets.song, {}, "nothing playing: gone")
+	eq((media({}).widgets.song).idle, true, "nothing playing: gone (idle)")
 end
 
 function tests.paused_offers_play_and_no_bars()

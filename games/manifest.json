@@ -2,7 +2,7 @@
   "id": "games",
   "name": "Games",
   "description": "The game you are playing, for how long, and how it runs: frames per second, and what it uses of the CPU, the memory and the graphics card.",
-  "version": "3.0.0",
+  "version": "3.2.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -17,7 +17,8 @@
       "name": "Game",
       "description": "The game in front, and its frame rate",
       "place": "top",
-      "rank": 30
+      "rank": 30,
+      "compact": true
     }
   ]
 }

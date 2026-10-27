@@ -2,7 +2,7 @@
   "id": "work",
   "name": "Work",
   "description": "What you work on: your editor and its project, your hours, and the session you are in.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -31,7 +31,8 @@
       "name": "Work",
       "description": "The session you are in, and for how long",
       "place": "bottom",
-      "rank": 30
+      "rank": 30,
+      "compact": true
     }
   ]
 }

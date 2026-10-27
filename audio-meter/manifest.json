@@ -2,7 +2,7 @@
   "id": "example-audio-meter",
   "name": "Audio Meter (Example)",
   "description": "What is playing, as bands that move with the sound. It hears levels and bands, never the sound itself.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "luau",
   "main": "main.luau",
   "permissions": { "audio": true },

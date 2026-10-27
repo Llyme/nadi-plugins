@@ -2,10 +2,21 @@
   "id": "downloads",
   "name": "Downloads",
   "description": "What your browsers, Steam and qBittorrent are downloading right now.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
-  "permissions": { "downloads": true },
-  "widgets": [{ "id": "downloads", "name": "Downloads", "description": "What is coming down, and how fast", "place": "bottom", "rank": 40 }]
+  "permissions": {
+    "downloads": true
+  },
+  "widgets": [
+    {
+      "id": "downloads",
+      "name": "Downloads",
+      "description": "What is coming down, and how fast",
+      "place": "bottom",
+      "rank": 40,
+      "compact": true
+    }
+  ]
 }

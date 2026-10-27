@@ -296,7 +296,7 @@ local function render(ev, extra)
 		local first = sections[1]
 		widget = {
 			peek = { icon = first.tile.icon, color = "#4f8ff0", text = if #sections > 1 then tostring(#sections) .. " pages" else first.sub, label = first.title },
-			panel = { title = "Pages", sub = #sections .. (if #sections == 1 then " page" else " pages"), tile = { icon = "globe", color = "#4f8ff0" }, body = sections },
+			panel = { body = sections },
 			tip = first.title,
 		}
 	end

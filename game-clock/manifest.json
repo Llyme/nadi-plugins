@@ -2,15 +2,36 @@
   "id": "example-game-clock",
   "name": "Game Clock (Example)",
   "description": "Which game is open, and for how long. It says so once after the time you set. It sees which programs have a window, nothing more.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "luau",
   "main": "main.luau",
   "banners": true,
-  "permissions": { "processes": true },
-  "budget": { "call_ms": 4, "memory_mb": 8 },
-  "settings": {
-    "games": { "label": "Programs that count as games", "type": "text", "default": "endfield.exe, genshinimpact.exe, eldenring.exe, hl2.exe" },
-    "remind_min": { "label": "Say so after (minutes)", "type": "number", "default": 120 }
+  "permissions": {
+    "processes": true
   },
-  "widgets": [{ "id": "clock", "name": "Game Clock", "description": "How long the game has been open", "place": "top", "rank": 60 }]
+  "budget": {
+    "call_ms": 4,
+    "memory_mb": 8
+  },
+  "settings": {
+    "games": {
+      "label": "Programs that count as games",
+      "type": "text",
+      "default": "endfield.exe, genshinimpact.exe, eldenring.exe, hl2.exe"
+    },
+    "remind_min": {
+      "label": "Say so after (minutes)",
+      "type": "number",
+      "default": 120
+    }
+  },
+  "widgets": [
+    {
+      "id": "clock",
+      "name": "Game Clock",
+      "description": "How long the game has been open",
+      "place": "top",
+      "rank": 60
+    }
+  ]
 }

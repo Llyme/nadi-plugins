@@ -59,15 +59,16 @@ local function widget(now: number)
 	local rows = {}
 	for i = #recent, 1, -1 do
 		local n = recent[i]
-		local sub = if n.app ~= "" and n.app ~= n.title then n.app .. " · " .. n.body else n.body
-		table.insert(rows, { title = n.title, sub = sub, right = ago(now - n.at) })
+		table.insert(rows, { title = n.title, sub = n.body, right = ago(now - n.at) })
 	end
+	-- (nothing to show: no panel, so it does not open)
 	local body = if #rows > 0
 		then { { kind = "list", rows = rows }, { kind = "buttons", items = { { label = "Clear", action = "clear" } } } }
-		else { { kind = "strip", text = "Nothing lately", tone = "low" } }
+		else nil
 	return {
-		peek = { icon = "bell", dot = if unseen then true else nil },
-		panel = { body = body },
+		peek = { icon = "bell" },
+		glow = if unseen then { color = "#e8b04a" } else nil,
+		panel = if body then { body = body } else nil,
 		tip = "Notifications",
 	}
 end

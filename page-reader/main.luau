@@ -244,7 +244,7 @@ local function section_of(e)
 		kind = "section",
 		id = "p" .. e.id,
 		title = e.title,
-		sub = if domain ~= "" then k.label .. " · " .. domain else k.label,
+		sub = if domain ~= "" then k.label .. ", " .. domain else k.label,
 		tile = { icon = GLYPH[k.id] or "globe", color = "#4f8ff0" },
 		body = body,
 		press = "focus:p" .. e.id,

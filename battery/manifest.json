@@ -2,7 +2,7 @@
   "id": "battery",
   "name": "Battery",
   "description": "How full the battery is, as a liquid that fills a vessel, and a banner when it runs low, is plugged in, or is full.",
-  "version": "2.1.0",
+  "version": "2.4.0",
   "kind": "luau",
   "default_on": false,
   "banners": true,

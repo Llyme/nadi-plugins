@@ -46,7 +46,7 @@ function handle(ev)
 		out.note = false
 		out.widgets = {
 			weather = {
-				peek = { icon = "sun", text = t .. "°", label = t .. "°C · feels like " .. round(c.apparent_temperature or 0) .. "°C" },
+				peek = { icon = "sun", text = t .. "°", label = t .. "°C, feels like " .. round(c.apparent_temperature or 0) .. "°C" },
 				panel = {
 					title = t .. "°C",
 					sub = "Feels like " .. round(c.apparent_temperature or 0) .. "°C",

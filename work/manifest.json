@@ -2,7 +2,7 @@
   "id": "work",
   "name": "Work",
   "description": "What you work on: your editor and its project, your hours, and the session you are in.",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,

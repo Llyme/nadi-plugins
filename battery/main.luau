@@ -51,12 +51,12 @@ local function sub_of(b): string
 	elseif b.plugged and not b.charging then
 		return left
 	end
-	return head .. " · " .. left
+	return head .. ", " .. left
 end
 
 local function about(b): string
 	local p = round(b.percent or 0) .. "%"
-	return if b.minutes_left then p .. " · about " .. nadi.duration(b.minutes_left) .. " left" else p
+	return if b.minutes_left then p .. ", about " .. nadi.duration(b.minutes_left) .. " left" else p
 end
 
 local function graph_of(): { number }
@@ -119,20 +119,20 @@ local function banner_for(now, s)
 	local said = {}
 	local draining = not now.plugged and not now.charging
 	if draining and on("b_critical", true) and q > critical and p <= critical then
-		table.insert(said, banner("Battery critical", about(now) .. " · plug in", "critical", RED, now, 8000, 90))
+		table.insert(said, banner("Battery critical", about(now) .. ", plug in", "critical", RED, now, 8000, 90))
 	elseif draining and on("b_critical", true) and critical > 5 and q > 5 and p <= 5 then
 		-- (and again, at the last few percent)
-		table.insert(said, banner("Battery critical", about(now) .. " · plug in", "critical", RED, now, 8000, 90))
+		table.insert(said, banner("Battery critical", about(now) .. ", plug in", "critical", RED, now, 8000, 90))
 	elseif draining and on("b_low", true) and q > low and p <= low then
 		table.insert(said, banner("Battery low", about(now), "low", AMBER, now, 5000, 60))
 	end
 	if not prev.plugged and now.plugged and on("b_plugged", true) then
 		local sub = round(p) .. "%"
 		if now.minutes_to_full then
-			sub ..= " · about " .. nadi.duration(now.minutes_to_full) .. " to full"
+			sub ..= ", about " .. nadi.duration(now.minutes_to_full) .. " to full"
 		end
 		if now.rate_w and now.rate_w > 0.5 then
-			sub ..= " · " .. round(now.rate_w) .. " W"
+			sub ..= ", " .. round(now.rate_w) .. " W"
 		end
 		table.insert(said, banner("Charging", sub, "charging", GREEN, now, 3000, 40))
 	end
@@ -144,12 +144,12 @@ local function banner_for(now, s)
 		table.insert(said, banner("Fully charged", "100%", "full", GREEN, now, 4000, 40))
 	end
 	if not prev.saver and now.saver and on("b_saver", false) then
-		table.insert(said, banner("Battery saver on", round(p) .. "% · it dims the screen and slows the PC down", "saver", AMBER, now, 4000, 40))
+		table.insert(said, banner("Battery saver on", round(p) .. "%", "saver", AMBER, now, 4000, 40))
 	end
 	if now.health and now.health < 80 and (health_said == nil or now.health <= health_said - 10) then
 		health_said = now.health
 		if on("b_health", false) then
-			local wh = if now.full_wh and now.design_wh then " · " .. round(now.full_wh) .. " Wh of " .. round(now.design_wh) else ""
+			local wh = if now.full_wh and now.design_wh then ", " .. round(now.full_wh) .. " Wh of " .. round(now.design_wh) else ""
 			table.insert(said, banner("Battery is wearing out", "Holds " .. round(now.health) .. "% of what it did new" .. wh, "health", GREY, now, 6000, 40))
 		end
 	end
@@ -234,9 +234,10 @@ function handle(ev)
 	local out: any = {
 		widgets = {
 			battery = {
-				peek = { vessel = { level = percent / 100, charging = b.charging }, color = color, text = big, label = if left ~= "" then big .. " · " .. left else big },
+				peek = { vessel = { level = percent / 100, charging = b.charging }, color = color, text = big, label = if left ~= "" then big .. ", " .. left else big },
+				glow = if not b.charging and (color == AMBER or color == RED) then { color = color } else nil,
 				panel = { title = sub_of(b), body = body },
-				tip = sub_of(b),
+				tip = { title = big, sub = sub_of(b), tile = { vessel = true, ring = percent / 100, bolt = b.charging, color = color } },
 			},
 		},
 	}

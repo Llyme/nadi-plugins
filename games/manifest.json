@@ -2,7 +2,7 @@
   "id": "games",
   "name": "Games",
   "description": "The game you are playing, for how long, and how it runs: frames per second, and what it uses of the CPU, the memory and the graphics card.",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,

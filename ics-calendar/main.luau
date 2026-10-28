@@ -155,7 +155,7 @@ local function panel(ev)
 	end)
 	if #list > 0 then
 		local t = of_day(sel, tz)
-		table.insert(body, { kind = "text", tone = "muted", text = WEEKDAYS[t.weekday + 1] .. ", " .. t.mon .. " " .. t.day .. " · " .. #list .. (if #list == 1 then " event" else " events") })
+		table.insert(body, { kind = "text", tone = "muted", text = WEEKDAYS[t.weekday + 1] .. ", " .. t.mon .. " " .. t.day .. ", " .. #list .. (if #list == 1 then " event" else " events") })
 		local rows = {}
 		for _, e in list do
 			table.insert(rows, { title = e.summary, time = span_text(e, sel, tz, h24), past = e.end_ms < ev.now and not e.all_day })
@@ -172,7 +172,7 @@ local function widget(ev)
 	local tip = "Nothing coming up"
 	if next_up then
 		local t = nadi.time(next_up.start_ms, tz)
-		tip = next_up.summary .. " · " .. t.wday .. ", " .. t.mon .. " " .. t.day .. " · " .. (if next_up.all_day then "all day" else clock(t, h24))
+		tip = next_up.summary .. "\n" .. t.wday .. ", " .. t.mon .. " " .. t.day .. ", " .. (if next_up.all_day then "all day" else clock(t, h24))
 	end
 	local now_t = nadi.time(ev.now, tz)
 	return {

@@ -2,7 +2,7 @@
   "id": "toasts",
   "name": "Notification Mirror",
   "description": "Shows the notifications of other apps (Discord, Viber, ...) as banners. Pressing one opens the app.",
-  "version": "3.2.0",
+  "version": "3.5.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -22,7 +22,8 @@
       "name": "Notifications",
       "description": "Where the banners come out; the last ones",
       "place": "top",
-      "rank": 0
+      "rank": 0,
+      "icon_only": true
     }
   ],
   "settings": {

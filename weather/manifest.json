@@ -2,7 +2,7 @@
   "id": "example-weather",
   "name": "Weather (Example)",
   "description": "The weather where you are, from open-meteo.com. Set your place below.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "luau",
   "main": "main.luau",
   "tick": "1m",

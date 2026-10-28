@@ -140,7 +140,7 @@ local function meta(it): string
 	local speed = speed_text(it.speed)
 	local function join(a: string, b: string): string
 		if a ~= "" and b ~= "" then
-			return a .. " · " .. b
+			return a .. ", " .. b
 		end
 		return if a ~= "" then a else b
 	end
@@ -178,7 +178,7 @@ local function draw()
 	for _, it in active do
 		speed += it.speed
 	end
-	local sub = if #active == 0 then #done .. " done" elseif #done == 0 then #active .. " downloading" else #active .. " downloading · " .. #done .. " done"
+	local sub = if #active == 0 then #done .. " done" elseif #done == 0 then #active .. " downloading" else #active .. " downloading, " .. #done .. " done"
 	local body: { any } = {}
 	local top = 0
 	for _, v in speeds do
@@ -193,7 +193,7 @@ local function draw()
 			if i > MAX_ACTIVE then
 				break
 			end
-			table.insert(rows, { title = it.source .. " · " .. it.name, sub = meta(it), progress = progress(it) })
+			table.insert(rows, { title = it.name, sub = it.source .. ", " .. meta(it), progress = progress(it) })
 		end
 		table.insert(body, { kind = "list", rows = rows })
 	end
@@ -219,7 +219,7 @@ local function draw()
 					ring = if part then { part = part } else nil,
 					color = TINT,
 					text = text,
-					label = if first then cut(first.name, 40) .. " · " .. meta(first) else sub,
+					label = if first then cut(first.name, 40) .. ", " .. meta(first) else sub,
 					count = if #active > 1 then #active else nil,
 				},
 				panel = { body = body },

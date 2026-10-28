@@ -38,7 +38,7 @@ function tests.it_reads_its_link_and_reminds_once()
 	eq(r.say[1].pill.right, "in 10 min", "when")
 	check(handle(ev("tick", T + 1000)).say == nil, "once")
 	local w = r.widgets.calendar
-	eq(w.tip, "Standup · Fri, Oct 9 · 3:40 PM", "what is next")
+	eq(w.tip, "Standup\nFri, Oct 9, 3:40 PM", "what is next")
 end
 
 function tests.the_month_and_a_day()

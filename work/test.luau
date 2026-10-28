@@ -20,7 +20,7 @@ function tests.a_session_is_confirmed_after_the_dwell_and_left_after_the_grace()
 	w = look(19000, code(), 0).widgets.work
 	eq(w.panel.title, "Coding", "a session")
 	eq(w.panel.body[1].title, "proj", "the project")
-	eq(w.panel.body[1].body[1].text, "Rust · main.rs", "the file")
+	eq(w.panel.body[1].body[1].text, "Rust, main.rs", "the file")
 	eq(w.peek.image, "exe:C:\\x\\Code.exe", "its icon, by name")
 	eq(look(60000, code(), 200).widgets.work.panel.title, "Coding", "a glance away does not end it")
 	look(100000, code(), 200)
@@ -49,7 +49,7 @@ function tests.titles_are_read()
 	handle({ event = "start", now = 0, settings = {} })
 	look(1000, { win("C:\\x\\Code.exe", "● lib.rs - nadi - Visual Studio Code", true) }, 0)
 	local w = look(10000, { win("C:\\x\\Code.exe", "Settings - nadi - Visual Studio Code", true) }, 0).widgets.work
-	eq(w.panel.body[1].body[1].text, "Rust · lib.rs ●", "a tab that is no file keeps the last file")
+	eq(w.panel.body[1].body[1].text, "Rust, lib.rs ●", "a tab that is no file keeps the last file")
 end
 
 function tests.git_is_asked_while_the_panel_is_open()
@@ -68,7 +68,8 @@ function tests.git_is_asked_while_the_panel_is_open()
 	local w = cmd("untracked", 0, "notes.md").widgets.work
 	local s = w.panel.body[1]
 	eq(s.body[2].items[1].text, "main", "branch")
-	eq(s.body[2].items[2].text, "+12 −3 · 3 files", "changes")
+	eq(s.body[2].items[2].text, "+12 −3", "changes")
+	eq(s.body[2].items[3].text, "3 files", "files")
 	eq(s.body[3].rows[1], { title = "a.rs", sub = "+12 −3", progress = 1 }, "the biggest first")
 	eq(s.body[3].rows[3].sub, "new", "new file")
 end

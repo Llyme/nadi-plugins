@@ -144,13 +144,13 @@ local function draw(now: number)
 	if u then
 		bars = { { part = (u.gpu or 0) / 100, color = "#8adb6e" }, { part = (u.cpu or 0) / 100, color = "#5ac8e6" }, { part = (u.ram or 0) / 100, color = "#b47ee6" } }
 	end
-	local more = if #games > 1 then " · +" .. (#games - 1) else ""
+	local more = if #games > 1 then " +" .. (#games - 1) else ""
 	return {
 		widgets = {
 			game = {
-				peek = { image = "exe:" .. front.path, icon = "gamepad", color = TINT, text = text, label = front.name .. " · " .. text .. more, bars = bars },
+				peek = { image = "exe:" .. front.path, icon = "gamepad", color = TINT, text = text, label = front.name .. ", " .. text .. more, bars = bars },
 				panel = { title = front.name, sub = "Playing for " .. duration(now - front.since) .. more, tile = { image = "exe:" .. front.path, icon = "gamepad", color = TINT }, body = body },
-				tip = front.name .. " · " .. text,
+				tip = front.name .. "\n" .. text,
 			},
 		},
 		watch = watch,

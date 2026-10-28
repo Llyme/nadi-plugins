@@ -210,7 +210,10 @@ local function section_of(s, now: number, state: string)
 	if s.model then
 		local m = model_name(s.model)
 		if m ~= "" then
-			table.insert(chips, { icon = "sparkle", text = if (s.effort or "") ~= "" then m .. " · " .. s.effort else m, tone = "" })
+			table.insert(chips, { icon = "sparkle", text = m, tone = "" })
+			if (s.effort or "") ~= "" then
+				table.insert(chips, { icon = "bolt", text = s.effort, tone = "" })
+			end
 		end
 	end
 	if #chips > 0 then
@@ -284,14 +287,14 @@ local function section_of(s, now: number, state: string)
 				end
 				table.insert(rows, { name = f.name, added = f.added, removed = f.removed })
 			end
-			table.insert(body, { kind = "files", title = "Changed · " .. #files, rows = rows })
+			table.insert(body, { kind = "files", title = plural(#files, "file") .. " changed", rows = rows })
 		end
 		table.insert(body, {
 			kind = "stats",
 			items = {
 				{ value = "+" .. (s.lines_added or 0), label = "Added" },
 				{ value = "−" .. (s.lines_removed or 0), label = "Removed" },
-				{ value = tostring(s.errors or 0), label = "Errors" },
+				{ value = tostring(s.errors or 0), label = "Retried" },
 				{ value = string.format("$%.2f", s.cost_usd or 0), label = "Cost" },
 			},
 		})
@@ -310,7 +313,13 @@ local function section_of(s, now: number, state: string)
 		title = title_of(s),
 		sub = text,
 		live = { icon = icon, tone = state },
-		tile = { text = "C", color = TILE, ring = frac, ring_color = fill_color(frac) },
+		tile = {
+			icon = "own:claude.svg",
+			image = if state == "working" then "own:claude-code.gif" else nil,
+			color = if state == "finished" then GREEN elseif state == "idle" then GREY else TILE,
+			ring = frac,
+			ring_color = fill_color(frac),
+		},
 		badge = { icon = host.icon or "term", tip = (host.label or "") .. "\n" .. project_of(s) },
 		body = body,
 		press = "focus:" .. s.id,
@@ -356,7 +365,7 @@ local function sessions_widget(now: number, usage)
 			title = "Claude Desktop",
 			sub = if front_is(d.exe, d.title) then "In front" else "Running",
 			live = { icon = "sparkle", tone = "idle" },
-			tile = { text = "C", color = TILE },
+			tile = { icon = "own:claude.svg", color = TILE },
 			body = {},
 			press = "focus:desktop",
 		})
@@ -364,15 +373,15 @@ local function sessions_widget(now: number, usage)
 	-- (the limits, on top of the panel; round the icon, a ring each)
 	local top_rows = if usage then { { kind = "bars", items = usage.rows } } else {}
 	local rings = if usage then usage.rings else nil
-	local usage_tip = if usage then " · " .. usage.tip else ""
 	if #body == 0 then
 		-- (no sessions: idle, so NADI can hide it, unless a limit is nearly used)
 		table.insert(top_rows, { kind = "strip", text = "No sessions", tone = "low" })
 		return {
 			idle = if usage and usage.high then nil else true,
-			peek = { live = { icon = "claude", tone = "idle", rings = rings }, color = TILE },
+			peek = { live = { icon = "own:claude.svg", tone = "idle", rings = rings }, color = TILE },
 			panel = { body = top_rows, press = if usage then "usage_refresh" else nil },
-			tip = "No sessions" .. usage_tip,
+			-- (its tip: the limits as bars)
+			tip = if usage then { title = "No sessions", body = { { kind = "bars", items = usage.rows } } } else "No sessions",
 		}
 	end
 	for _, b in body do
@@ -386,13 +395,15 @@ local function sessions_widget(now: number, usage)
 		elseif working == 1 then "Working"
 		elseif #body == 1 then (if top then title_of(top.s) else "Claude Desktop")
 		else plural(#body, "session")
-	local label = if top then title_of(top.s) .. " · " .. select(2, activity(top.s, top.state)) else "Claude Desktop"
+	local label = if top then title_of(top.s) .. ", " .. select(2, activity(top.s, top.state)) else "Claude Desktop"
 	return {
 		-- (every session resting: idle, so NADI can hide it)
 		idle = if tone == "idle" then true else nil,
-		peek = { live = { icon = "claude", tone = tone, image = if tone == "working" then "own:claude-code.gif" else nil, rings = rings }, color = if waiting > 0 then AMBER else TILE, text = text, label = label, dot = waiting > 0 or nil, count = if #body > 1 then #body else nil },
+		peek = { live = { icon = "own:claude.svg", tone = tone, image = if tone == "working" then "own:claude-code.gif" else nil, rings = rings }, color = if waiting > 0 then AMBER else TILE, text = text, label = label },
+		-- (it asks for you: a glow that breathes round it; it finished: a green flash that fades)
+		glow = if waiting > 0 then { color = AMBER, style = "breathe" } elseif tone == "finished" then { color = GREEN, style = "flash" } else nil,
 		panel = { title = if waiting > 0 then text else nil, body = top_rows },
-		tip = label .. usage_tip,
+		tip = if usage then { title = label, body = { { kind = "bars", items = usage.rows } } } else label,
 	}
 end
 
@@ -421,7 +432,7 @@ local function tile_for(tone: string)
 	elseif tone == "stopped" then
 		color, ring = RED, 1
 	end
-	return { text = "C", color = color, ring = ring, ring_color = if ring then color else nil }
+	return { icon = "own:claude.svg", color = color, ring = ring, ring_color = if ring then color else nil }
 end
 
 local function banner(key: string, title: string, tone: string, sub: string, ms: number, prio: number, press: string, buttons: { any }?)
@@ -462,7 +473,7 @@ local function needs_you(s, ask)
 end
 
 local function held_reply(s)
-	local sub = if (s.reply or "") == "" then "Done · wants a reply" else "Says: " .. clip(s.reply, 80)
+	local sub = if (s.reply or "") == "" then "Done, wants a reply" else "Says: " .. clip(s.reply, 80)
 	return banner(s.id, title_of(s), "reply", sub, 12000, 90, "focus:" .. s.id)
 end
 
@@ -500,7 +511,7 @@ local function merged(moments)
 		ms = math.max(ms, m.ms)
 		prio = math.max(prio, m.prio)
 	end
-	return banner("claude-many", #moments .. " sessions", tone, table.concat(parts, " · "), ms, prio, "focus:" .. moments[1].id)
+	return banner("claude-many", #moments .. " sessions", tone, table.concat(parts, ", "), ms, prio, "focus:" .. moments[1].id)
 end
 
 local function on(settings, key: string, default: boolean): boolean
@@ -547,7 +558,7 @@ local function alerts(now: number, settings)
 			sn.started = true
 			sn.quiet = true
 			if cfg.open and visible then
-				table.insert(moments, moment(s, "info", "New session · " .. ((s.host or {}).label or ""), 3000, 30))
+				table.insert(moments, moment(s, "info", if ((s.host or {}).label or "") ~= "" then "New session in " .. s.host.label else "New session", 3000, 30))
 			end
 		end
 		if prev == "waiting" and kind ~= "waiting" then
@@ -572,7 +583,7 @@ local function alerts(now: number, settings)
 			if not sn.started and now - sn.since >= STARTED_MS then
 				sn.started = true
 				if cfg.start and visible then
-					table.insert(moments, moment(s, "working", "Started working · " .. ((s.host or {}).label or ""), 3000, 40))
+					table.insert(moments, moment(s, "working", if ((s.host or {}).label or "") ~= "" then "Working in " .. s.host.label else "Working", 3000, 40))
 				end
 			end
 		else
@@ -581,18 +592,20 @@ local function alerts(now: number, settings)
 				local took = if (s.turn_started or 0) > 0 and s.turn_started <= updated then updated - s.turn_started else math.max(0, updated - sn.since)
 				sn.quiet = false
 				if took >= cfg.skip_ms and visible then
-					local errors = math.max(0, (s.errors or 0) - (sn.errors or 0))
 					if s.asking and s.asking.kind == "stop" then
 						if cfg.needs then
 							table.insert(says, held_reply(s))
 						end
-					elseif errors > 0 and cfg.stop then
-						table.insert(moments, moment(s, "stopped", "Stopped · " .. plural(errors, "error"), 6000, 60))
+					elseif s.ended == "error" and cfg.stop then
+						-- (the turn itself failed; tool calls that failed along the way are the model's to work round, not this)
+						table.insert(moments, moment(s, "stopped", "Stopped by an error", 6000, 60))
+					elseif s.ended == "interrupted" then
+						-- (stopped by the person: they know)
 					elseif cfg.done then
 						local sub = "Done in " .. clock_dur(took // 1000)
 						local files = #(s.files or {})
 						if files > 0 then
-							sub ..= " · " .. plural(files, "file") .. " changed"
+							sub ..= ", " .. plural(files, "file") .. " changed"
 						end
 						table.insert(moments, moment(s, "finished", sub, 5000, 60))
 					end
@@ -771,7 +784,7 @@ local function on_numbers(out)
 		return { label = label, from = (from or 0) / 100, value = math.clamp((to or 0) / 100, 0, 1), text = if to then math.floor(to + 0.5) .. "%" else "" }
 	end
 	out.say = out.say or {}
-	table.insert(out.say, { text = "Claude usage", priority = 30, ambient = true, pill = { icon = "sparkle", key = "claude-usage", tone = "info", ms = 3900, rows = { row("5h", old[1], new[1]), row("7d", old[2], new[2]) } } })
+	table.insert(out.say, { text = "Claude usage", priority = 30, ambient = true, pill = { bare = true, icon = "sparkle", key = "claude-usage", tone = "info", ms = 3900, rows = { row("5h", old[1], new[1]), row("7d", old[2], new[2]) } } })
 end
 
 local function answered(ev, out)
@@ -862,7 +875,7 @@ local function usage_of(now: number, wanted: boolean)
 	if #rings == 0 then
 		return nil
 	end
-	return { rings = rings, rows = rows, tip = table.concat(tip, " · "), high = (snap.five and (snap.five.pct or 0) >= 80) or false }
+	return { rings = rings, rows = rows, tip = table.concat(tip, ", "), high = (snap.five and (snap.five.pct or 0) >= 80) or false }
 end
 
 local function note_of(wanted: boolean): any

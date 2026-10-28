@@ -2,13 +2,30 @@
   "id": "example-audio-meter",
   "name": "Audio Meter (Example)",
   "description": "What is playing, as bands that move with the sound. It hears levels and bands, never the sound itself.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "kind": "luau",
   "main": "main.luau",
-  "permissions": { "audio": true },
-  "budget": { "call_ms": 4, "memory_mb": 8 },
-  "settings": {
-    "show_bpm": { "label": "Show the tempo", "type": "toggle", "default": true }
+  "permissions": {
+    "audio": true
   },
-  "widgets": [{ "id": "meter", "name": "Audio", "description": "The sound, as bands", "place": "bottom", "rank": 80 }]
+  "budget": {
+    "call_ms": 4,
+    "memory_mb": 8
+  },
+  "settings": {
+    "show_bpm": {
+      "label": "Show the tempo",
+      "type": "toggle",
+      "default": true
+    }
+  },
+  "widgets": [
+    {
+      "id": "meter",
+      "name": "Audio",
+      "description": "The sound, as bands",
+      "place": "bottom",
+      "rank": 80
+    }
+  ]
 }

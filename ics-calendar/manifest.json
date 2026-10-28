@@ -2,7 +2,7 @@
   "id": "ics-calendar",
   "name": "Calendar",
   "description": "The events of a calendar link (.ics: Google Calendar, Outlook, iCloud), the date and time, a month you open from it, a banner shortly before an event, and, if you like, one that says the time now and then.",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,

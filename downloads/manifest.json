@@ -2,7 +2,7 @@
   "id": "downloads",
   "name": "Downloads",
   "description": "What your browsers, Steam and qBittorrent are downloading right now.",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,

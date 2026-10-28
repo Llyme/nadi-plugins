@@ -74,7 +74,7 @@ local function draw(viz: boolean)
 	if #others > 0 then
 		table.insert(body, { kind = "list", rows = others })
 	end
-	local label = if s.artist and s.artist ~= "" then s.title .. " · " .. s.artist else s.title
+	local label = if s.artist and s.artist ~= "" then s.title .. ", " .. s.artist else s.title
 	return {
 		widgets = {
 			song = {
@@ -84,12 +84,16 @@ local function draw(viz: boolean)
 					icon = "music",
 					viz = viz and s.playing or nil,
 					color = TINT,
+					color_from = cover,
 					text = s.title,
 					label = label,
 					button = { icon = if s.playing then "pause" else "play", label = if s.playing then "Pause" else "Play", action = "toggle" },
 				},
+				-- (playing: a glow in the cover's colours)
+				glow = if s.playing and cover then { from = cover } else nil,
 				panel = { title = s.title, sub = s.artist or "", tile = { image = cover, icon = "music", color = TINT }, body = body, press = "focus" },
-				tip = label,
+				-- (its tip: the cover, the song and who sings it)
+				tip = { title = s.title, sub = s.artist or "", tile = { image = cover, icon = "music", color = TINT } },
 			},
 		},
 	}

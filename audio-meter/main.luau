@@ -16,7 +16,7 @@ function handle(ev)
 	local kind = if a.kind == "music" then "Music" elseif a.kind == "speech" then "Voices" else "Silence"
 	local sub = kind
 	if ev.settings.show_bpm ~= false and (a.bpm or 0) > 40 and a.kind == "music" then
-		sub = kind .. " · " .. math.floor(a.bpm + 0.5) .. " bpm"
+		sub = kind .. ", " .. math.floor(a.bpm + 0.5) .. " bpm"
 	end
 	local level = math.floor((a.level or 0) * 100 + 0.5) .. "%"
 	local shown = table.clone(bars)

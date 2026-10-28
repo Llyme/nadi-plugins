@@ -2,13 +2,30 @@
   "id": "now-playing",
   "name": "Now Playing",
   "description": "What is playing, with play, skip, seek and speed, and three bars that dance with the sound.",
-  "version": "3.1.0",
+  "version": "3.4.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
-  "permissions": { "media": true, "media_art": true, "media_control": true, "viz": true },
-  "settings": {
-    "visualizer": { "label": "Show the sound as three bars", "type": "toggle", "default": true }
+  "permissions": {
+    "media": true,
+    "media_art": true,
+    "media_control": true,
+    "viz": true
   },
-  "widgets": [{ "id": "song", "name": "Now Playing", "description": "The song, its cover and play/pause", "place": "top", "rank": 40 }]
+  "settings": {
+    "visualizer": {
+      "label": "Show the sound as three bars",
+      "type": "toggle",
+      "default": true
+    }
+  },
+  "widgets": [
+    {
+      "id": "song",
+      "name": "Now Playing",
+      "description": "The song, its cover and play/pause",
+      "place": "top",
+      "rank": 40
+    }
+  ]
 }

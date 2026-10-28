@@ -363,7 +363,7 @@ local function sections(ev)
 			if coding_file then
 				local language = language_of(coding_file)
 				local mark = if coding_unsaved then " ●" else ""
-				table.insert(body, { kind = "text", text = if language then language .. " · " .. coding_file .. mark else coding_file .. mark })
+				table.insert(body, { kind = "text", text = if language then language .. ", " .. coding_file .. mark else coding_file .. mark })
 			end
 			local side = duration(today(day, "categories", "coding") * 1000) .. " today"
 			if project and project.changed > 0 then
@@ -376,7 +376,7 @@ local function sections(ev)
 					local sum = f.added + f.deleted
 					table.insert(rows, { title = f.name, sub = if f.status == "A" then "new" else "+" .. f.added .. " −" .. f.deleted, progress = if sum > 0 then math.max(0.1, sum / peak) else nil })
 				end
-				table.insert(body, { kind = "chips", items = { { icon = "branch", text = project.branch, tone = "" }, { icon = "pen", text = "+" .. project.added .. " −" .. project.deleted .. " · " .. project.changed .. " files", tone = "" } } })
+				table.insert(body, { kind = "chips", items = { { icon = "branch", text = project.branch, tone = "" }, { icon = "pen", text = "+" .. project.added .. " −" .. project.deleted, tone = "" }, { icon = "file", text = project.changed .. " files", tone = "" } } })
 				table.insert(body, { kind = "list", rows = rows })
 				if project.changed > #project.files then
 					table.insert(body, { kind = "text", text = "+" .. (project.changed - #project.files) .. " more", tone = "muted" })
@@ -388,7 +388,7 @@ local function sections(ev)
 				kind = "section",
 				id = "coding",
 				title = name,
-				sub = (if in_session then "Editing" else "Not at the keyboard") .. " · " .. side,
+				sub = (if in_session then "Editing" else "Not at the keyboard") .. ", " .. side,
 				tile = { image = "exe:" .. r.path, icon = "code", color = TINT },
 				body = body,
 				press = "focus:coding",
@@ -424,7 +424,7 @@ local function draw(ev)
 		end
 	end
 	local text = if session then duration(now - confirmed_since) else duration(total * 1000)
-	local label = if session then (LABEL[session] or "") .. " · " .. confirmed_app .. " · " .. text else "Today · " .. text
+	local label = if session then (LABEL[session] or "") .. ", " .. confirmed_app .. ", " .. text else "Today " .. text
 	local icon = if session then GLYPH[session] or "dot" else "code"
 	local r = if session then recent[session] else nil
 	return {

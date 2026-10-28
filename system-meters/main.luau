@@ -39,11 +39,11 @@ function handle(ev)
 	return {
 		widgets = {
 			meters = {
-				peek = { bars = bars, label = table.concat(tip, " · ") },
+				peek = { bars = bars, label = table.concat(tip, ", ") },
 				panel = {
 					body = { { kind = "rings", items = rings }, { kind = "facts", rows = { { "Memory", memory } } } },
 				},
-				tip = table.concat(tip, " · "),
+				tip = table.concat(tip, "\n"),
 			},
 		},
 	}

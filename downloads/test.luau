@@ -13,7 +13,7 @@ function tests.a_download_shows_how_far_and_how_fast()
 	local w = look(1000, { dl("a", "browser", 2000000, 10000000) }).widgets.downloads
 	eq(w.peek.ring.part, 0.2, "a fifth")
 	eq(w.peek.text, "1.9 MB/s", "speed")
-	eq(w.panel.body[2].rows[1].sub, "20% · 1.9 MB/s", "row")
+	eq(w.panel.body[2].rows[1].sub, "Chrome, 20%, 1.9 MB/s", "row")
 	eq(w.panel.title, nil, "no head")
 end
 
@@ -38,5 +38,5 @@ function tests.steam_shows_no_progress()
 	look(0, { dl("s", "steam", 0, 5000000000) })
 	local w = look(1000, { dl("s", "steam", 1000000, 5000000000) }).widgets.downloads
 	check(w.peek.ring == nil, "no ring")
-	eq(w.panel.body[2].rows[1].sub, "4.7 GB · 977 KB/s", "size and speed")
+	eq(w.panel.body[2].rows[1].sub, "Steam, 4.7 GB, 977 KB/s", "size and speed")
 end

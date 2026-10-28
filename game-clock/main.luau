@@ -44,10 +44,10 @@ function handle(ev)
 	local out: any = {
 		widgets = {
 			clock = {
-				peek = { icon = "gamepad", text = span(played), label = nice(w.exe) .. " · " .. span(played) },
+				peek = { icon = "gamepad", text = span(played), label = nice(w.exe) .. ", " .. span(played) },
 				panel = {
 					title = nice(w.exe),
-					sub = "Playing · " .. span(played),
+					sub = "Playing for " .. span(played),
 					tile = { icon = "gamepad" },
 					body = { { kind = "facts", rows = { { "Session", span(played) }, { "Reminder", "after " .. span(remind) } } } },
 				},

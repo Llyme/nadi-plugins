@@ -5,15 +5,16 @@
 -- plugin only decides what to say. A PC with no battery is told so once, and shows nothing.
 
 local GREEN, AMBER, RED, GREY = "#5ac88c", "#e8b04a", "#e87a7a", "#8e8e96"
--- the charge of this many hours is kept for the graph, with at most this many points, a sample at least this far apart
+-- the charge of this many hours is kept, a sample at least this far apart
 local HOURS_MS = 3 * 3600000
-local POINTS = 54
 local SAMPLE_MS = 120000
 
 local seen = nil -- the battery as it was last told: what a change is a change from
 local samples = {} -- { at, percent } over the last three hours
 local health_said = nil -- the lowest health a banner has said
 local told_none = false
+local span = "3h" -- how far back the apps that drew it are counted: the last three hours, or the last day
+local settings_seen = {}
 
 local function round(x: number): number
 	return math.floor(x + 0.5)
@@ -43,41 +44,15 @@ local function left_of(b): string
 	return ""
 end
 
-local function sub_of(b): string
-	local left = left_of(b)
-	local head = if b.charging then "Charging" elseif b.plugged then "Plugged in" else "On battery"
-	if left == "" or left == head then
-		return head
-	elseif b.plugged and not b.charging then
-		return left
-	end
-	return head .. ", " .. left
-end
-
 local function about(b): string
 	local p = round(b.percent or 0) .. "%"
 	return if b.minutes_left then p .. ", about " .. nadi.duration(b.minutes_left) .. " left" else p
 end
 
-local function graph_of(): { number }
-	local out = {}
-	local n = #samples
-	if n <= POINTS then
-		for _, s in samples do
-			table.insert(out, s[2])
-		end
-		return out
-	end
-	for i = 0, POINTS - 1 do
-		table.insert(out, samples[math.floor(i * (n - 1) / (POINTS - 1)) + 1][2])
-	end
-	return out
-end
-
--- the vessel of a battery, as a tile: its number in it, filled to the charge
+-- the round tank of a battery, as a tile: filled to the charge (bubbles while it charges)
 local function liquid(b, color: string)
 	local p = b.percent or 0
-	return { text = tostring(round(p)), color = color, ring = p / 100, ring_color = color, vessel = true, bolt = b.charging or nil }
+	return { color = color, ring = p / 100, tank = true, bolt = b.charging or nil }
 end
 
 -- a banner: the circle is the liquid, filled to the charge
@@ -162,11 +137,98 @@ local function banner_for(now, s)
 	return best
 end
 
+-- what the tank says under its number: the time left, to full, or how it stands
+local function words_of(b): string
+	if b.charging then
+		return if b.minutes_to_full then "Full in " .. nadi.duration(b.minutes_to_full) else "Charging"
+	elseif b.plugged then
+		return if (b.percent or 0) >= 99.5 then "Fully charged" else "Plugged in"
+	elseif b.minutes_left then
+		return nadi.duration(b.minutes_left) .. " left"
+	end
+	return "On battery"
+end
+
+-- The widget, as the battery stands: at rest a round tank and the number; open, the tank (its number, what it means, a few small
+-- numbers at its foot) and the apps that drew the most of it.
+local function widget(b, settings)
+	local percent = b.percent
+	local low, critical = marks(settings)
+	local color = color_of(percent, b.charging, low, critical)
+	local big = round(percent) .. "%"
+	local left = left_of(b)
+	local full = b.plugged and percent >= 99.5
+	local foot = {}
+	if b.rate_w then
+		table.insert(foot, math.abs(round(b.rate_w)) .. " W")
+	end
+	if b.health then
+		table.insert(foot, "Health " .. round(b.health) .. "%")
+	end
+	if b.full_wh then
+		table.insert(foot, round(b.full_wh) .. " Wh")
+	end
+	local tip = big .. "\n" .. words_of(b)
+	if b.health and b.full_wh and b.design_wh then
+		tip ..= "\nHolds " .. round(b.full_wh) .. " Wh of " .. round(b.design_wh) .. " Wh new"
+	end
+	if b.saver then
+		tip ..= "\nBattery saver on"
+	end
+	local body: { any } = {
+		{ kind = "tank", part = percent / 100, color = color, charging = b.charging, title = big, sub = words_of(b), foot = foot, tip = tip },
+	}
+	-- (what drew it: each app's share, the busiest first; the screen and Windows' own last)
+	local apps = b.apps and b.apps[span] or {}
+	if #apps > 0 then
+		local top = 0
+		for _, a in apps do
+			if not a.system then
+				top = math.max(top, a.share)
+			end
+		end
+		local rows = {}
+		for _, a in apps do
+			local wh = if a.wh >= 10 then tostring(round(a.wh)) else string.format("%.1f", a.wh)
+			table.insert(rows, {
+				image = if a.program then "exe:" .. a.program else nil,
+				name = a.name,
+				text = round(a.share * 100) .. "%",
+				part = if a.system then a.share else (if top > 0 then a.share / top else 0),
+				system = a.system or nil,
+				color = color,
+				tip = a.name .. ": " .. wh .. " Wh",
+			})
+		end
+		table.insert(body, { kind = "appshares", options = { { value = "3h", label = "3 H" }, { value = "24h", label = "24 H" } }, value = span, action = "span", rows = rows })
+	end
+	return {
+		peek = { tank = { level = percent / 100, charging = b.charging, full = full }, color = color, text = big, label = if left ~= "" then big .. ", " .. left else big },
+		glow = if not b.charging and (color == AMBER or color == RED) then { color = color } else nil,
+		-- (plugged in or out, low, critical, full: it comes out of its edge for a moment)
+		bump = (if b.plugged then "plugged" else "battery") .. "|" .. color .. "|" .. (if percent >= 100 then "full" else ""),
+		panel = { body = body },
+		tip = tip,
+	}
+end
+
 function handle(ev)
+	-- (how far back the apps are counted: switched in the open panel)
+	if ev.event == "action" and ev.action == "span" then
+		local v = ev.args and ev.args.value
+		if v == "3h" or v == "24h" then
+			span = v
+		end
+		if seen then
+			return { widgets = { battery = widget(seen, ev.settings or settings_seen) } }
+		end
+		return nil
+	end
 	if ev.event ~= "battery" then
 		return nil
 	end
 	local b = ev.battery
+	settings_seen = ev.settings or {}
 	-- a PC with no battery: nothing is shown, and it is said once why
 	if not b.present or not b.percent then
 		seen = nil
@@ -197,52 +259,7 @@ function handle(ev)
 		health_said = b.health
 	end
 	seen = b
-
-	local low, critical = marks(ev.settings)
-	local color = color_of(percent, b.charging, low, critical)
-	local big = round(percent) .. "%"
-	local left = left_of(b)
-
-	-- open: the chips, the last hours, four numbers
-	local chips = {}
-	if b.plugged then
-		table.insert(chips, { icon = "plug", text = "Plugged in", tone = "ok" })
-	end
-	table.insert(chips, { icon = "leaf", text = if b.saver then "Battery saver on" else "Battery saver off", tone = if b.saver then "hot" else "" })
-	if b.health then
-		table.insert(chips, { icon = "heart", text = "Health " .. round(b.health) .. "%", tone = "" })
-	end
-	local body: { any } = { { kind = "chips", items = chips } }
-	local points = graph_of()
-	if #points >= 2 then
-		table.insert(body, { kind = "graph", values = points, max = 100 })
-	end
-	local dash = "–"
-	table.insert(body, {
-		kind = "stats",
-		items = {
-			{ value = if b.rate_w then math.abs(round(b.rate_w)) .. " W" else dash, label = if b.charging then "Charging" else "Drawing" },
-			{
-				value = if b.charging then (if b.minutes_to_full then nadi.duration(b.minutes_to_full) else dash) else (if b.minutes_left then nadi.duration(b.minutes_left) else dash),
-				label = if b.charging then "To full" else "Left",
-			},
-			{ value = if b.health then round(b.health) .. "%" else dash, label = "Health" },
-			{ value = if b.full_wh then round(b.full_wh) .. " Wh" else dash, label = "Full charge" },
-		},
-	})
-
-	local out: any = {
-		widgets = {
-			battery = {
-				peek = { vessel = { level = percent / 100, charging = b.charging }, color = color, text = big, label = if left ~= "" then big .. ", " .. left else big },
-				glow = if not b.charging and (color == AMBER or color == RED) then { color = color } else nil,
-				-- (plugged in or out, low, critical, full: it comes out of its edge for a moment)
-				bump = (if b.plugged then "plugged" else "battery") .. "|" .. color .. "|" .. (if percent >= 100 then "full" else ""),
-				panel = { title = sub_of(b), body = body },
-				tip = { title = big, sub = sub_of(b), tile = { vessel = true, ring = percent / 100, bolt = b.charging, color = color } },
-			},
-		},
-	}
+	local out: any = { widgets = { battery = widget(b, ev.settings) } }
 	if said then
 		out.say = { said }
 	end

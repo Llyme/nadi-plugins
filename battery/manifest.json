@@ -1,13 +1,14 @@
 {
   "id": "battery",
   "name": "Battery",
-  "description": "How full the battery is, as a liquid that fills a vessel, and a banner when it runs low, is plugged in, or is full.",
-  "version": "2.5.0",
+  "description": "How full the battery is, as a round tank of liquid, the apps that drew the most of it, and a banner when it runs low, is plugged in, or is full.",
+  "version": "3.0.0",
   "kind": "luau",
   "default_on": false,
   "banners": true,
   "permissions": {
-    "battery": true
+    "battery": true,
+    "app_power": true
   },
   "source": {
     "when": "always"

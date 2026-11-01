@@ -20,18 +20,38 @@ end
 
 tests = {}
 
-function tests.the_widget_is_the_vessel_and_says_how_it_stands()
-	local r = at(T0, battery(64))
+function tests.the_widget_is_a_tank_and_says_how_it_stands()
+	local r = at(T0, battery(64, { rate_w = -12 }))
 	local w = r.widgets.battery
 	eq(w.peek.text, "64%", "peek text")
 	eq(w.peek.label, "64%, 3h 20m left", "peek label")
-	eq(w.peek.vessel, { level = 0.64, charging = false }, "vessel")
-	eq(w.panel.title, "On battery, 3h 20m left", "how it stands")
-	eq(w.panel.body[1].kind, "chips", "chips first")
-	eq(w.panel.body[2].kind, "stats", "no graph yet")
-	-- later, with the last hours, it has a graph
-	r = at(T0 + 600000, battery(60))
-	eq(r.widgets.battery.panel.body[2].kind, "graph", "graph")
+	eq(w.peek.tank, { level = 0.64, charging = false, full = false }, "tank")
+	local t = w.panel.body[1]
+	eq(t.kind, "tank", "the tank first")
+	eq(t.title, "64%", "its number")
+	eq(t.sub, "3h 20m left", "what it means")
+	eq(t.foot, { "12 W", "Health 91%", "48 Wh" }, "its foot")
+	eq(#w.panel.body, 1, "no apps counted yet: the tank alone")
+end
+
+function tests.the_apps_that_drew_it_most_and_how_far_back()
+	local apps = {
+		["3h"] = { { program = "c:\b\browser.exe", name = "Browser", wh = 2.1, share = 0.34 }, { program = "c:\g\game.exe", name = "Game", wh = 1.4, share = 0.22 }, { system = true, name = "Screen and System", wh = 1.8, share = 0.29 } },
+		["24h"] = { { program = "c:\c\code.exe", name = "Code", wh = 9, share = 0.5 }, { system = true, name = "Screen and System", wh = 9, share = 0.5 } },
+	}
+	local r = at(T0, battery(64, { apps = apps }))
+	local s = r.widgets.battery.panel.body[2]
+	eq(s.kind, "appshares", "the apps under the tank")
+	eq(s.value, "3h", "the last three hours first")
+	eq(s.rows[1].name, "Browser", "the busiest first")
+	eq(s.rows[1].text, "34%", "its share")
+	eq(s.rows[1].part, 1, "its bar the longest")
+	eq(s.rows[1].image, "exe:c:\b\browser.exe", "its picture")
+	eq(s.rows[3].system, true, "the screen and the rest last")
+	r = handle({ event = "action", action = "span", args = { value = "24h" }, now = T0, settings = {} })
+	s = r.widgets.battery.panel.body[2]
+	eq(s.value, "24h", "the last day")
+	eq(s.rows[1].name, "Code", "its apps")
 end
 
 function tests.amber_when_low_red_when_critical_green_when_charging()
@@ -40,7 +60,8 @@ function tests.amber_when_low_red_when_critical_green_when_charging()
 	eq(at(T0, battery(10)).widgets.battery.peek.color, "#e87a7a", "red")
 	local r = at(T0, battery(5, { plugged = true, charging = true, minutes_to_full = 42, minutes_left = nadi.null }))
 	eq(r.widgets.battery.peek.color, "#5ac88c", "charging is green")
-	eq(r.widgets.battery.panel.title, "Charging, 42 min to full", "charging")
+	eq(r.widgets.battery.panel.body[1].sub, "Full in 42 min", "charging")
+	eq(r.widgets.battery.peek.tank.charging, true, "bubbles")
 end
 
 function tests.it_says_when_it_runs_low_and_when_it_runs_out()

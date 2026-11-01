@@ -1,0 +1,24 @@
+{
+  "id": "steam",
+  "name": "Steam",
+  "description": "Your installed Steam games, the last played first: press one to play it. At rest, the game you play, or one that updates.",
+  "version": "1.6.1",
+  "kind": "luau",
+  "main": "main.luau",
+  "default_on": false,
+  "permissions": {
+    "steam": true,
+    "open": [
+      "steam://rungameid/"
+    ]
+  },
+  "widgets": [
+    {
+      "id": "library",
+      "name": "Steam",
+      "description": "Your games, and the one you play",
+      "place": "top-left",
+      "rank": 40
+    }
+  ]
+}

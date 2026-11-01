@@ -38,26 +38,49 @@ function tests.it_reads_its_link_and_reminds_once()
 	eq(r.say[1].pill.right, "in 10 min", "when")
 	check(handle(ev("tick", T + 1000)).say == nil, "once")
 	local w = r.widgets.calendar
-	eq(w.tip, "Standup\nFri, Oct 9, 3:40 PM", "what is next")
+	eq(w.tip, "Standup\nin 10 min", "what is next, soon")
+	check(w.peek.dot, "a dot: within the hour")
+	eq(w.peek.clock.next.title, "Standup", "large: beside the clock")
+	check(w.peek.page.part > 0 and w.peek.page.part < 0.2, "its icon alone: the page's top draining")
 end
 
-function tests.the_month_and_a_day()
+local function find(body, kind: string)
+	for _, b in body do
+		if b.kind == kind then
+			return b
+		end
+	end
+	return nil
+end
+
+function tests.the_day_its_week_and_the_month()
 	handle(ev("start", T))
 	handle(ev("fetched", T, { id = "ics", status = 200, body = FEED }))
 	local p = handle(ev("action", T, { action = "today" })).widgets.calendar.panel
-	eq(p.body[1].title, "October 2026", "month")
-	local grid = p.body[2]
-	eq(grid.labels[1], "S", "Sunday first")
-	-- (October 1st 2026 is a Thursday: four days of September first)
-	eq(grid.cells[5].t, "1", "the 1st")
-	eq(grid.cells[1].state, "other", "September")
-	eq(grid.cells[13].state, "sel", "today, picked")
-	eq(p.body[4].rows[1], { title = "Standup", time = "3:40 PM – 4:00 PM", past = false }, "the day's event")
+	local head = find(p.body, "dayhead")
+	eq(head.time, "3:30", "the time")
+	eq(head.ampm, "PM", "its half of the day")
+	eq(head.date, "October 9", "the date")
+	local week = find(p.body, "weekstrip")
+	eq(#week.days, 7, "a week")
+	check(week.days[6].on and week.days[6].today, "Friday: today, picked")
+	eq(#week.days[6].dots, 1, "its event")
+	local nx = find(p.body, "nextup")
+	eq(nx.title, "Standup", "what is next")
+	eq(nx.text, "10m", "how soon")
+	local tl = find(p.body, "timeline")
+	eq(tl.rows[1].title, "Standup", "the day's event")
+	eq(tl.now, 0, "now: before it")
 	local day = (T // DAY) + 3
 	p = handle(ev("action", T, { action = "d:" .. day })).widgets.calendar.panel
-	eq(p.body[4].rows[1].time, "All day", "holiday")
+	eq(find(p.body, "timeline").rows[1].time, "All day", "holiday")
+	p = handle(ev("action", T, { action = "view:month" })).widgets.calendar.panel
+	local m = find(p.body, "monthgrid")
+	eq(m.title, "October 2026", "the month")
+	eq(m.lead, 4, "October 1st 2026 is a Thursday")
+	eq(#m.days, 31, "only its own days")
 	p = handle(ev("action", T, { action = "next" })).widgets.calendar.panel
-	eq(p.body[1].title, "November 2026", "next month")
+	eq(find(p.body, "monthgrid").title, "November 2026", "next month")
 end
 
 function tests.without_a_link_it_says_where_to_put_one()
@@ -86,4 +109,13 @@ function tests.it_says_the_time_at_the_marks_when_asked()
 	local r = handle(ev("action", T, { action = "say_time" }))
 	eq(r.say[1].text, "3:30 PM", "now, when pressed")
 	eq(r.say[1].ambient, false, "pressed: at once")
+end
+
+function tests.opened_it_shows_today()
+	handle(ev("start", T))
+	handle(ev("fetched", T, { id = "ics", status = 200, body = FEED }))
+	handle(ev("action", T, { action = "wnext" }))
+	handle(ev("action", T, { action = "view:month" }))
+	local p = handle(ev("open", T, { widget = "calendar", open = true })).widgets.calendar.panel
+	eq(find(p.body, "dayhead").date, "October 9", "today again, its day")
 end

@@ -236,6 +236,8 @@ function handle(ev)
 			battery = {
 				peek = { vessel = { level = percent / 100, charging = b.charging }, color = color, text = big, label = if left ~= "" then big .. ", " .. left else big },
 				glow = if not b.charging and (color == AMBER or color == RED) then { color = color } else nil,
+				-- (plugged in or out, low, critical, full: it comes out of its edge for a moment)
+				bump = (if b.plugged then "plugged" else "battery") .. "|" .. color .. "|" .. (if percent >= 100 then "full" else ""),
 				panel = { title = sub_of(b), body = body },
 				tip = { title = big, sub = sub_of(b), tile = { vessel = true, ring = percent / 100, bolt = b.charging, color = color } },
 			},

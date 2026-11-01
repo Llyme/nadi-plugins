@@ -1,0 +1,21 @@
+{
+  "id": "picture",
+  "name": "Picture",
+  "description": "Pictures you paste into it, a map or a guide, to zoom and pan; popped out, over a game.",
+  "version": "1.2.0",
+  "kind": "luau",
+  "main": "main.luau",
+  "default_on": false,
+  "permissions": {
+    "storage": true
+  },
+  "widgets": [
+    {
+      "id": "picture",
+      "name": "Picture",
+      "description": "The picture shown, and the others pasted",
+      "place": "top",
+      "rank": 60
+    }
+  ]
+}

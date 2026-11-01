@@ -1,8 +1,8 @@
 {
   "id": "page-reader",
-  "name": "Page Reader",
-  "description": "A section for each page you have open, with what the page says (needs the NADI browser extension).",
-  "version": "3.2.0",
+  "name": "NADI Chrome",
+  "description": "What you are reading, as a card made for its kind: walkthroughs and recipes followed step by step, articles, answers, prices (needs the NADI Chrome browser extension).",
+  "version": "4.1.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -10,7 +10,8 @@
     "processes": true,
     "titles": true,
     "programs": true,
-    "browser": true
+    "browser": true,
+    "storage": true
   },
   "budget": {
     "call_ms": 60,

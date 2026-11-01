@@ -1,8 +1,8 @@
 {
   "id": "system-meters",
   "name": "System Meters",
-  "description": "How busy the CPU, the memory and the graphics card are: three thin bars, and open, a ring for each.",
-  "version": "4.1.0",
+  "description": "How busy the CPU, the memory and the graphics card are: a graph of the last minute of each, and open, a graph over an hour and the programs using the most.",
+  "version": "5.0.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -17,5 +17,31 @@
       "place": "right",
       "rank": 50
     }
-  ]
+  ],
+  "settings": {
+    "hide_calm": {
+      "label": "Hide When Calm",
+      "type": "toggle",
+      "default": true
+    },
+    "calm": {
+      "label": "Calm Below",
+      "type": "choice",
+      "default": "50",
+      "options": [
+        {
+          "value": "30",
+          "label": "30% CPU"
+        },
+        {
+          "value": "50",
+          "label": "50% CPU"
+        },
+        {
+          "value": "70",
+          "label": "70% CPU"
+        }
+      ]
+    }
+  }
 }

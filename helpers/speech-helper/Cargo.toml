@@ -1,0 +1,20 @@
+[package]
+name = "speech-helper"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+cpal = "0.15"
+whisper-rs = "0.14"
+sherpa-rs = { version = "0.6", default-features = false, features = ["download-binaries"] }
+sherpa-rs-sys = { version = "0.6", default-features = false, features = ["download-binaries"] }
+serde_json = "1"
+ureq = "2"
+chrono = "0.4"
+hound = "3.5"
+windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"

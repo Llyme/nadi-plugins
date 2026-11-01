@@ -2,7 +2,7 @@
   "id": "now-playing",
   "name": "Now Playing",
   "description": "What is playing, with play, skip, seek and speed, and three bars that dance with the sound.",
-  "version": "3.4.0",
+  "version": "4.1.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,

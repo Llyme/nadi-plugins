@@ -13,7 +13,11 @@ local WEEKDAYS = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satu
 local COLUMNS = { "S", "M", "T", "W", "T", "F", "S" } -- Sunday first
 local TINT = "#4f8ff0"
 
+local AMBER = "#e8b04a"
+local HOUR_MS = 3600000
+
 local events = {}
+local view = "day" -- what the panel shows: the day (its week, what is next, its events) or the month
 local told = {}
 local month = 0 -- the month the panel shows: year * 12 + (month - 1)
 local sel = 0 -- the day picked, as days since 1970 (local)
@@ -97,53 +101,11 @@ local function go_to(n: number, tz: number)
 	month = t.year * 12 + t.month - 1
 end
 
-local function panel(ev)
-	local tz = ev.tz_offset or 0
-	local h24 = ev.settings.h24 == true
-	local today = today_of(ev.now, tz)
-	local week_start = if ev.settings.week_start == 1 then 1 else 0
-	local first = first_of(month)
-	local sunday_based = (of_day(first, tz).weekday + 1) % 7 -- (weekday 0 is Monday)
-	local start = first - (sunday_based + 7 - week_start) % 7
-	local labels = {}
-	for i = 0, 6 do
-		table.insert(labels, COLUMNS[(i + week_start) % 7 + 1])
-	end
-	local cells = {}
-	for i = 0, 41 do
-		local n = start + i
-		local t = of_day(n, tz)
-		local dots = 0
-		for _, e in events do
-			if dots >= 3 then
-				break
-			end
-			if on_day(e, n, tz) then
-				dots += 1
-			end
-		end
-		table.insert(cells, {
-			t = tostring(t.day),
-			id = "d:" .. n,
-			state = if n == sel then "sel" elseif n == today then "today" elseif t.month ~= month % 12 + 1 then "other" else "",
-			dots = dots,
-		})
-	end
-	local body: { any } = {
-		{ kind = "head", title = MONTHS[month % 12 + 1] .. " " .. (month // 12), prev = "prev", next = "next", press = "today" },
-		{ kind = "grid", labels = labels, cells = cells },
-	}
-	local url = ev.settings.url or ""
-	if string.match(url, "^%s*$") then
-		table.insert(body, { kind = "text", tone = "muted", text = "No calendar link" })
-		return body
-	end
-	if problem then
-		table.insert(body, { kind = "text", tone = "muted", text = problem })
-	end
+-- the events of a day, all-day ones first
+local function day_events(n: number, tz: number)
 	local list = {}
 	for _, e in events do
-		if on_day(e, sel, tz) then
+		if on_day(e, n, tz) then
 			table.insert(list, e)
 		end
 	end
@@ -153,14 +115,167 @@ local function panel(ev)
 		end
 		return a.start_ms < b.start_ms
 	end)
-	if #list > 0 then
-		local t = of_day(sel, tz)
-		table.insert(body, { kind = "text", tone = "muted", text = WEEKDAYS[t.weekday + 1] .. ", " .. t.mon .. " " .. t.day .. ", " .. #list .. (if #list == 1 then " event" else " events") })
-		local rows = {}
-		for _, e in list do
-			table.insert(rows, { title = e.summary, time = span_text(e, sel, tz, h24), past = e.end_ms < ev.now and not e.all_day })
+	return list
+end
+
+-- a dot of its calendar's colour for each of a day's events (three at most)
+local function dots_of(n: number, tz: number)
+	local out = {}
+	for _, e in events do
+		if #out >= 3 then
+			break
 		end
-		table.insert(body, { kind = "rows", rows = rows })
+		if on_day(e, n, tz) then
+			table.insert(out, TINT)
+		end
+	end
+	return out
+end
+
+-- the next event that starts at a time (not all day), or is going on, within a day
+local function next_event(now: number)
+	for _, e in events do
+		if not e.all_day and e.end_ms > now and e.start_ms - now <= 24 * HOUR_MS then
+			return e
+		end
+	end
+	return nil
+end
+
+-- "12m", "1h 5m", "Now"
+local function soon_text(ms: number): string
+	if ms <= 0 then
+		return "Now"
+	end
+	local m = math.ceil(ms / 60000)
+	if m < 60 then
+		return m .. "m"
+	end
+	local h = m // 60
+	return if m % 60 > 0 then h .. "h " .. (m % 60) .. "m" else h .. "h"
+end
+
+-- "in 12 min", "in 1 h 5 min", "now"
+local function soon_words(ms: number): string
+	if ms <= 0 then
+		return "now"
+	end
+	local m = math.ceil(ms / 60000)
+	if m < 60 then
+		return "in " .. m .. " min"
+	end
+	return "in " .. (m // 60) .. " h" .. (if m % 60 > 0 then " " .. (m % 60) .. " min" else "")
+end
+
+local function month_panel(ev)
+	local tz = ev.tz_offset or 0
+	local today = today_of(ev.now, tz)
+	local week_start = if ev.settings.week_start == 1 then 1 else 0
+	local first = first_of(month)
+	local last = first_of(month + 1) - 1
+	local sunday_based = (of_day(first, tz).weekday + 1) % 7 -- (weekday 0 is Monday)
+	local labels = {}
+	for i = 0, 6 do
+		table.insert(labels, COLUMNS[(i + week_start) % 7 + 1])
+	end
+	local days = {}
+	for n = first, last do
+		local t = of_day(n, tz)
+		table.insert(days, { num = tostring(t.day), today = n == today, sel = n == sel and n ~= today, weekend = t.weekday >= 5, dots = dots_of(n, tz), action = "d:" .. n })
+	end
+	return {
+		{ kind = "monthgrid", title = MONTHS[month % 12 + 1] .. " " .. (month // 12), prev = "prev", next = "next", press = "view:day", labels = labels, lead = (sunday_based + 7 - week_start) % 7, days = days },
+	}
+end
+
+local function panel(ev)
+	if view == "month" then
+		return month_panel(ev)
+	end
+	local tz = ev.tz_offset or 0
+	local h24 = ev.settings.h24 == true
+	local now = ev.now
+	local today = today_of(now, tz)
+	local week_start = if ev.settings.week_start == 1 then 1 else 0
+	local now_t = nadi.time(now, tz)
+	local sel_t = of_day(sel, tz)
+	-- (the time, big; the day and the date picked on its right)
+	local time = clock(now_t, h24)
+	local ampm = ""
+	if not h24 then
+		ampm = string.sub(time, -2)
+		time = string.sub(time, 1, -4)
+	end
+	local body: { any } = {
+		{ kind = "dayhead", time = time, ampm = ampm, day = WEEKDAYS[sel_t.weekday + 1], date = MONTHS[sel_t.month] .. " " .. sel_t.day, toggle = "view:month", toggle_icon = "calendar", toggle_tip = "Month" },
+	}
+	-- (the week the day picked is in)
+	local sunday_based = (sel_t.weekday + 1) % 7
+	local start = sel - (sunday_based + 7 - week_start) % 7
+	local days = {}
+	for i = 0, 6 do
+		local n = start + i
+		local t = of_day(n, tz)
+		table.insert(days, { label = COLUMNS[(i + week_start) % 7 + 1], num = tostring(t.day), on = n == sel, today = n == today, dots = dots_of(n, tz), action = "d:" .. n })
+	end
+	table.insert(body, { kind = "weekstrip", prev = "wprev", next = "wnext", days = days })
+	local url = ev.settings.url or ""
+	if string.match(url, "^%s*$") then
+		table.insert(body, { kind = "text", tone = "muted", text = "No calendar link" })
+		return body
+	end
+	if problem then
+		table.insert(body, { kind = "text", tone = "muted", text = problem })
+	end
+	-- (what is next: a ring running down to it over its last hour, a button to join it)
+	local nx = next_event(now)
+	if nx then
+		local left = nx.start_ms - now
+		local soon = left <= 10 * 60000
+		local nt = nadi.time(nx.start_ms, tz)
+		local nday = today_of(nx.start_ms, tz)
+		local when = span_text(nx, nday, tz, h24)
+		if nday ~= today then
+			when = (if nday == today + 1 then "Tomorrow" else nt.wday) .. ", " .. when
+		end
+		table.insert(body, {
+			kind = "nextup",
+			title = nx.summary,
+			sub = if (nx.location or "") ~= "" then when .. ", " .. nx.location else when,
+			part = math.clamp(left / HOUR_MS, 0, 1),
+			text = soon_text(left),
+			color = if soon then AMBER else TINT,
+			join = if (nx.link or "") ~= "" then "join:" .. nx.uid else nil,
+		})
+	end
+	-- (the day's events in time; a line where now is)
+	local list = day_events(sel, tz)
+	if #list > 0 then
+		local rows = {}
+		local now_at = -1
+		for i, e in list do
+			if sel == today and now_at < 0 and not e.all_day and e.start_ms > now then
+				now_at = i - 1
+			end
+			local t = nadi.time(e.start_ms, tz)
+			local at = if e.all_day then "All day" else clock(t, h24)
+			if not h24 and not e.all_day then
+				at = string.sub(at, 1, -4)
+			end
+			local span = span_text(e, sel, tz, h24)
+			table.insert(rows, {
+				time = at,
+				title = e.summary,
+				sub = if (e.location or "") ~= "" then span .. ", " .. e.location else span,
+				color = TINT,
+				past = sel < today or (sel == today and e.end_ms < now and not e.all_day),
+				action = if (e.link or "") ~= "" then "join:" .. e.uid else nil,
+			})
+		end
+		if sel == today and now_at < 0 then
+			now_at = #rows
+		end
+		table.insert(body, { kind = "timeline", rows = rows, now = now_at })
 	end
 	return body
 end
@@ -168,17 +283,39 @@ end
 local function widget(ev)
 	local tz = ev.tz_offset or 0
 	local h24 = ev.settings.h24 == true
-	local next_up = upcoming(ev.now)[1]
+	local now = ev.now
+	local next_up = upcoming(now)[1]
 	local tip = "Nothing coming up"
 	if next_up then
 		local t = nadi.time(next_up.start_ms, tz)
 		tip = next_up.summary .. "\n" .. t.wday .. ", " .. t.mon .. " " .. t.day .. ", " .. (if next_up.all_day then "all day" else clock(t, h24))
 	end
-	local now_t = nadi.time(ev.now, tz)
+	local now_t = nadi.time(now, tz)
+	-- (an event within the hour: a dot after the date in its colour (amber and breathing in its last ten minutes); large, it beside the
+	-- clock; its icon alone, the page's top in its colour, draining as it comes)
+	local nx = next_event(now)
+	local left = if nx then nx.start_ms - now else math.huge
+	local within = nx ~= nil and left > 0 and left <= HOUR_MS
+	local last10 = within and left <= 10 * 60000
+	local c = if last10 then AMBER else TINT
+	if within and nx then
+		tip = nx.summary .. "\n" .. soon_words(left)
+	end
+	-- (an event about to start, within five minutes: it comes out of its edge for a moment)
+	local soon = nx and left <= 5 * 60 * 1000 and left > 0
 	return {
-		peek = { clock = { h24 = h24, date = true }, icon = "calendar", color = TINT, text = clock(now_t, h24), label = tip },
+		peek = {
+			clock = { h24 = h24, date = true, next = if within and nx then { title = nx.summary, when = soon_words(left), color = c } else nil },
+			dot = within,
+			dot_pulse = last10,
+			color = if within then c else TINT,
+			page = { mon = string.upper(now_t.mon), day = tostring(now_t.day), part = if within then left / HOUR_MS else nil, color = if within then c else nil },
+			text = clock(now_t, h24),
+			label = tip,
+		},
 		panel = { body = panel(ev) },
 		tip = tip,
+		bump = if soon and nx then nx.summary .. "|" .. tostring(nx.start_ms) else nil,
 	}
 end
 
@@ -209,6 +346,13 @@ function handle(ev)
 		go_to(today_of(now, tz), tz)
 		url_seen = ev.settings.url or ""
 		ask(ev, out)
+	elseif e == "open" then
+		-- (its panel opened: today, its day)
+		local opened = if type(ev.open) == "table" then ev.open.calendar == true else ev.open == true
+		if opened then
+			go_to(today_of(now, tz), tz)
+			view = "day"
+		end
 	elseif e == "fetched" then
 		fetching = false
 		if ev.status == 200 then
@@ -229,13 +373,27 @@ function handle(ev)
 			sel = first_of(month) + math.min(d - 1, last - 1)
 		elseif a == "today" then
 			go_to(today_of(now, tz), tz)
+		elseif a == "wprev" or a == "wnext" then
+			go_to(sel + (if a == "wprev" then -7 else 7), tz)
+		elseif a == "view:month" or a == "view:day" then
+			view = string.sub(a, 6)
+		elseif string.match(a, "^join:") then
+			local uid = string.sub(a, 6)
+			for _, x in events do
+				if x.uid == uid and (x.link or "") ~= "" then
+					out.open = x.link
+					break
+				end
+			end
 		elseif string.match(a, "^d:") then
 			local n = tonumber(string.sub(a, 3))
 			if n then
 				go_to(n, tz)
+				view = "day"
 			end
 		elseif a == "open" then
 			go_to(today_of(now, tz), tz)
+			view = "day"
 		elseif a == "say_time" then
 			out.say = { chime(ev, false) }
 		end

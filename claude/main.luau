@@ -24,6 +24,7 @@ local MAX_SESSIONS = 24
 local TILE, AMBER, GREEN, RED, GREY = "#d97757", "#e8b04a", "#5ac88c", "#e87a7a", "#6d6d75"
 
 local sessions = {} -- once each (the one that changed last)
+local picks: { [string]: { [string]: string } } = {} -- a question's answers so far, by its request (each question, the choice)
 local seen = {} -- what the banners know of each session, by id
 local primed = false -- the first look was had: what is there already is not news
 local front: { exe: string, title: string }? = nil
@@ -195,118 +196,56 @@ end
 
 -- One session, as a section of the panel.
 local function section_of(s, now: number, state: string)
+	-- at a glance: a row each; its logo (how it stands) in its context ring, its title, what it does now, and how long; one that
+	-- asks to run something has Allow and Deny right there
 	local icon, text = activity(s, state)
 	local frac = used(s)
-	local ctx = { kind = "meter", label = "Context", part = frac, text = tokens(s.context_tokens or 0) .. " / " .. tokens(context_limit(s.model)), color = fill_color(frac) }
 	local body: { any } = {}
-	local chips = {}
-	if (s.branch or "") ~= "" then
-		table.insert(chips, { icon = "branch", text = s.branch, tone = "" })
-	end
-	local mc = mode_chip(s.mode or "")
-	if mc then
-		table.insert(chips, mc)
-	end
-	if s.model then
-		local m = model_name(s.model)
-		if m ~= "" then
-			table.insert(chips, { icon = "sparkle", text = m, tone = "" })
-			if (s.effort or "") ~= "" then
-				table.insert(chips, { icon = "bolt", text = s.effort, tone = "" })
-			end
+	local buttons = nil
+	local right = ""
+	local first = nil
+	local qs = if s.asking and s.asking.kind == "permission" and type(s.asking.questions) == "table" then s.asking.questions else nil
+	if state == "waiting" and qs and #qs > 0 then
+		-- it asks you something: the first question not answered yet, its choices to press, and words of your own
+		local ask = s.asking
+		local got = picks[ask.id] or {}
+		local qi = 1
+		while qs[qi] and got[qs[qi].question] do
+			qi += 1
 		end
-	end
-	if #chips > 0 then
-		table.insert(body, { kind = "chips", items = chips })
-	end
-	local turn = if (s.turn_started or 0) > 0 then (now - s.turn_started) // 1000 else 0
-	local plan = {}
-	for i, t in s.todos or {} do
-		if i > 8 then
-			break
+		local q = qs[math.min(qi, #qs)]
+		text = q.question
+		local items = {}
+		for oi, o in q.options or {} do
+			local rec = string.find(o.label, "(Recommended)", 1, true) ~= nil
+			table.insert(items, { label = o.label, action = "pick:" .. ask.id .. ":" .. qi .. ":" .. oi, tone = if rec then "ok" else "", tip = if (o.description or "") ~= "" then o.description else nil })
 		end
-		table.insert(plan, { state = t.status, text = t.text })
-	end
-	if state == "working" then
-		table.insert(body, {
-			kind = "strip",
-			text = if turn > 0 then "Working for " .. clock_dur(turn) else "Working",
-			side = if (s.thinking_ms or 0) >= 1000 then "Thought " .. (s.thinking_ms // 1000) .. "s" else "",
-			tone = "working",
-		})
-		if #plan > 0 then
-			table.insert(body, { kind = "checklist", title = "Plan", items = plan })
-		end
-		local rows = { { icon = icon, text = text, now = true } }
-		for i, f in s.feed or {} do
-			if i > 2 then
-				break
-			end
-			table.insert(rows, { icon = f.icon, text = f.text, now = false })
-		end
-		table.insert(body, { kind = "lines", rows = rows })
-		table.insert(body, stats(s))
-		table.insert(body, ctx)
+		table.insert(body, { kind = "buttons", items = items })
+		table.insert(body, { kind = "field", placeholder = "Something else…", action = "own:" .. ask.id .. ":" .. qi })
+		first = true
 	elseif state == "waiting" then
 		local ask = if s.asking and s.asking.kind == "permission" then s.asking else nil
+		if ask then
+			buttons = { { label = "Allow", action = "allow:" .. ask.id, tone = "ok" }, { label = "Deny", action = "deny:" .. ask.id, tone = "no" } }
+		end
 		local call = ask or s.pending
 		local detail = if call then call.detail or "" else ""
-		if detail ~= "" or ask then
-			local waited = (if ask then ask.age_ms or 0 else now - (s.updated or 0)) // 1000
-			local block: any = {
-				kind = "ask",
-				label = wants(if call then call.tool or "" else ""),
-				side = if waited >= 5 then "waiting " .. clock_dur(waited) else "",
-				icon = if call then call.icon or "term" else "term",
-				text = detail,
-				buttons = {},
-			}
-			if ask then
-				block.buttons = { { label = "Allow", action = "allow:" .. ask.id, tone = "ok" }, { label = "Deny", action = "deny:" .. ask.id, tone = "no" } }
-				block.field = "Tell Claude what to do instead…"
-				block.action = "denywith:" .. ask.id
-			end
-			table.insert(body, block)
+		if detail ~= "" then
+			text = wants(if call then call.tool or "" else "") .. " " .. (if #detail > 60 then string.sub(detail, 1, 59) .. "…" else detail)
 		end
-		if #plan > 0 then
-			table.insert(body, { kind = "checklist", title = "Plan", items = plan })
-		end
-		table.insert(body, stats(s))
+	elseif state == "working" then
+		local turn = if (s.turn_started or 0) > 0 then (now - s.turn_started) // 1000 else 0
+		right = if turn > 0 then clock_dur(turn) else ""
 	elseif state == "finished" then
-		local took = if (s.turn_started or 0) > 0 then clock_dur(((s.updated or 0) - s.turn_started) // 1000) else ""
-		table.insert(body, { kind = "strip", text = if took == "" then "Done" else "Done in " .. took, side = ago(now - (s.updated or 0)), tone = "finished" })
-		if (s.reply or "") ~= "" then
-			table.insert(body, { kind = "text", label = "Result", text = s.reply })
-		end
-		local files = s.files or {}
-		if #files > 0 then
-			local rows = {}
-			for i, f in files do
-				if i > 6 then
-					break
-				end
-				table.insert(rows, { name = f.name, added = f.added, removed = f.removed })
-			end
-			table.insert(body, { kind = "files", title = plural(#files, "file") .. " changed", rows = rows })
-		end
-		table.insert(body, {
-			kind = "stats",
-			items = {
-				{ value = "+" .. (s.lines_added or 0), label = "Added" },
-				{ value = "−" .. (s.lines_removed or 0), label = "Removed" },
-				{ value = tostring(s.errors or 0), label = "Retried" },
-				{ value = string.format("$%.2f", s.cost_usd or 0), label = "Cost" },
-			},
-		})
-		table.insert(body, ctx)
-		if s.asking and s.asking.kind == "stop" then
-			table.insert(body, { kind = "field", placeholder = "Reply to Claude…", hint = "while the turn is open", action = "reply:" .. s.asking.id })
-		end
+		local files = #(s.files or {})
+		text = if files > 0 then "Done, " .. plural(files, "file") .. " changed" else "Done"
+		right = ago(now - (s.updated or 0))
 	else
-		table.insert(body, { kind = "strip", text = "Quiet", side = "last " .. ago(now - (s.updated or 0)), tone = "idle" })
-		table.insert(body, ctx)
+		right = ago(now - (s.updated or 0))
 	end
-	local host = s.host or {}
+	if s.asking and s.asking.kind == "stop" then
+		table.insert(body, { kind = "field", placeholder = "Reply to Claude…", action = "reply:" .. s.asking.id })
+	end
 	return {
 		kind = "section",
 		id = s.id,
@@ -320,7 +259,9 @@ local function section_of(s, now: number, state: string)
 			ring = frac,
 			ring_color = fill_color(frac),
 		},
-		badge = { icon = host.icon or "term", tip = (host.label or "") .. "\n" .. project_of(s) },
+		right = right,
+		buttons = buttons,
+		first = first,
 		body = body,
 		press = "focus:" .. s.id,
 	}
@@ -440,7 +381,8 @@ local function banner(key: string, title: string, tone: string, sub: string, ms:
 	if buttons and #buttons > 0 then
 		pill.buttons = buttons
 	end
-	return { text = title, priority = prio, ambient = true, pill = pill }
+	-- (while it is quiet (full screen, a game), only the small ones wait: a session done, stopped, or wanting you still comes out)
+	return { text = title, priority = prio, ambient = prio < 60, pill = pill }
 end
 
 local function clip(text: string, n: number): string
@@ -954,6 +896,39 @@ function handle(ev)
 		id = string.match(a, "^reply:(.+)$")
 		if id then
 			return { answer = { id = id, behavior = "reply", text = text } }
+		end
+		-- a question's choice (or words of your own): kept till every question has one, then all given at once
+		local pid, pq, po = string.match(a, "^pick:([^:]+):(%d+):(%d+)$")
+		local oid, oq = string.match(a, "^own:([^:]+):(%d+)$")
+		local rid = pid or oid
+		if rid then
+			local qs = nil
+			for _, s in sessions do
+				if s.asking and s.asking.id == rid and type(s.asking.questions) == "table" then
+					qs = s.asking.questions
+				end
+			end
+			local q = qs and qs[tonumber(pq or oq) or 0]
+			if q then
+				local choice = if pid then (q.options[tonumber(po) or 0] or {}).label else text
+				if choice and choice ~= "" then
+					picks[rid] = picks[rid] or {}
+					picks[rid][q.question] = choice
+					local all = true
+					for _, x in qs do
+						if not picks[rid][x.question] then
+							all = false
+						end
+					end
+					if all then
+						local answers = picks[rid]
+						picks[rid] = nil
+						return { answer = { id = rid, behavior = "allow", text = "", answers = answers } }
+					end
+					-- (the next question shows)
+					return { widgets = { usage = {}, sessions = sessions_widget(now, usage_of(now, wanted)) } }
+				end
+			end
 		end
 		local wait = settings.wait or 20
 		if a == "answer_on" then

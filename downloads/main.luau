@@ -35,6 +35,9 @@ local function speed_text(speed: number): string
 	return if speed > 1024 then bytes(speed) .. "/s" else ""
 end
 
+-- how many have finished since it began (a new one: it comes out of its edge for a moment)
+local finished_count = 0
+
 local function find(id: string, done: boolean?): number?
 	for i, it in items do
 		if it.id == id and (done == nil or it.done == done) then
@@ -94,6 +97,7 @@ local function merge(now: number, observed, ended)
 			if e.finished then
 				local it = items[i]
 				it.done, it.speed, it.path = true, 0, e.path
+				finished_count += 1
 				if it.total then
 					it.received = it.total
 				end
@@ -162,6 +166,24 @@ local function cut(name: string, n: number): string
 	return (string.gsub(string.sub(name, 1, stop - 1), "%s+$", "")) .. "…"
 end
 
+-- how long until it is done, short: "12 s", "3 min", "1 h 5 min" (nil: not known)
+local function left_of(received: number, total: number?, speed: number): string?
+	if not total or total <= 0 or speed < 1024 then
+		return nil
+	end
+	local s = math.max(0, total - received) / speed
+	if s < 60 then
+		return math.max(1, math.floor(s + 0.5)) .. " s"
+	elseif s < 3600 then
+		return math.floor(s / 60 + 0.5) .. " min"
+	end
+	local h = math.floor(s / 3600)
+	local m = math.floor((s - h * 3600) / 60)
+	return if m > 0 then h .. " h " .. m .. " min" else h .. " h"
+end
+
+local SOURCE_ICON = { browser = "globe", steam = "gamepad", torrent = "download" }
+
 local function draw()
 	if #items == 0 then
 		-- (nothing coming in: idle, so NADI can hide it)
@@ -175,55 +197,82 @@ local function draw()
 		return a.started < b.started
 	end)
 	local speed = 0
+	local got, all, known = 0, 0, true
 	for _, it in active do
 		speed += it.speed
+		if progress(it) then
+			got += math.min(it.received, it.total)
+			all += it.total
+		else
+			known = false
+		end
 	end
-	local sub = if #active == 0 then #done .. " done" elseif #done == 0 then #active .. " downloading" else #active .. " downloading, " .. #done .. " done"
 	local body: { any } = {}
+	-- (on top: how fast all of it comes in, as a line)
 	local top = 0
 	for _, v in speeds do
 		top = math.max(top, v)
 	end
-	if top > 0 and #active > 0 then
-		table.insert(body, { kind = "graph", values = table.clone(speeds), max = math.max(top * 1.15, 100000) })
+	if #active > 0 and top > 0 then
+		table.insert(body, { kind = "linegraph", values = table.clone(speeds), max = math.max(top * 1.15, 100000), text = speed_text(speed), color = TINT })
 	end
-	if #active > 0 then
-		local rows = {}
-		for i, it in active do
-			if i > MAX_ACTIVE then
-				break
-			end
-			table.insert(rows, { title = it.name, sub = it.source .. ", " .. meta(it), progress = progress(it) })
+	for i, it in active do
+		if i > MAX_ACTIVE then
+			break
 		end
-		table.insert(body, { kind = "list", rows = rows })
+		local appid = if it.kind == "steam" then string.match(it.id, "^steam:(%d+)$") else nil
+		local part = progress(it)
+		table.insert(body, {
+			kind = "transfer",
+			image = if appid then "steamart:" .. appid else nil,
+			wide = appid ~= nil,
+			icon = SOURCE_ICON[it.kind] or "download",
+			title = it.name,
+			sub = if speed_text(it.speed) ~= "" then speed_text(it.speed) else it.source,
+			right = if part then left_of(it.received, it.total, it.speed) or math.floor(part * 100) .. "%" else nil,
+			part = part,
+			color = TINT,
+		})
 	end
-	if #done > 0 then
+	for i, it in done do
+		if i > MAX_DONE then
+			break
+		end
 		local buttons = {}
-		for i, it in done do
-			if i > MAX_DONE then
-				break
-			end
-			local verb = if it.kind == "browser" and it.path then "Show" else "Clear"
-			table.insert(buttons, { label = verb .. " " .. cut(it.name, 28), action = "done:" .. it.id })
+		if it.path then
+			table.insert(buttons, { icon = "folder", action = "show:" .. it.id, tip = "Show in Folder" })
 		end
-		table.insert(body, { kind = "buttons", items = buttons })
+		table.insert(buttons, { icon = "x", action = "clear:" .. it.id, tip = "Clear" })
+		table.insert(body, { kind = "transfer", done = true, title = it.name, action = if it.path then "open:" .. it.id else nil, buttons = buttons })
 	end
+	-- at rest: everything coming in, in one ring, and the time until all of it is done; all done: a check
 	local first = active[1]
-	local part = if first then progress(first) else nil
-	local text = if #active == 0 then #done .. " done" elseif speed_text(speed) ~= "" then speed_text(speed) else #active .. " downloading"
+	local part = if #active > 0 and known and all > 0 then got / all else (if first then progress(first) else nil)
+	local slowest: string? = nil
+	local worst = -1
+	for _, it in active do
+		if progress(it) and it.speed >= 1024 then
+			local s = (it.total - it.received) / it.speed
+			if s > worst then
+				worst, slowest = s, left_of(it.received, it.total, it.speed)
+			end
+		end
+	end
+	local text = if #active == 0 then nil else slowest or (if speed_text(speed) ~= "" then speed_text(speed) else nil)
+	local sub = if #active == 0 then #done .. " done" elseif #done == 0 then #active .. " downloading" else #active .. " downloading, " .. #done .. " done"
 	return {
 		widgets = {
 			downloads = {
 				peek = {
-					icon = "download",
-					ring = if part then { part = part } else nil,
-					color = TINT,
+					icon = if #active == 0 then "check" else "download",
+					ring = if #active == 0 then { part = 1, theme = true } elseif part then { part = part } else nil,
+					color = if #active == 0 then nil else TINT,
 					text = text,
 					label = if first then cut(first.name, 40) .. ", " .. meta(first) else sub,
-					count = if #active > 1 then #active else nil,
 				},
 				panel = { body = body },
-				tip = sub,
+				tip = if speed_text(speed) ~= "" then sub .. ", " .. speed_text(speed) else sub,
+				bump = if finished_count > 0 then finished_count else nil,
 			},
 		},
 	}
@@ -237,17 +286,24 @@ function handle(ev)
 		merge(ev.now, ev.observed, ev.ended)
 		return draw()
 	elseif ev.event == "action" then
-		local id = string.match(ev.action or "", "^done:(.+)$")
+		local verb, id = string.match(ev.action or "", "^(%a+):(.+)$")
 		local i = if id then find(id, true) else nil
 		if not i then
 			return nil
 		end
-		local it = table.remove(items, i)
-		local out: any = draw()
-		if it and it.kind == "browser" and it.path then
+		local it = items[i]
+		if verb == "open" and it.path then
+			local out: any = draw()
+			out.open_file = it.path
+			return out
+		elseif verb == "show" and it.path then
+			local out: any = draw()
 			out.reveal = it.path
+			return out
+		elseif verb == "clear" or verb == "done" then
+			table.remove(items, i)
+			return draw()
 		end
-		return out
 	end
 	return nil
 end

@@ -2,7 +2,7 @@
   "id": "claude",
   "name": "Claude",
   "description": "Your Claude Code sessions for as long as they run (and the Claude desktop app), a banner when a session changes state (with Allow and Deny when one asks), and how much of your Claude 5-hour and 7-day limits you have used.",
-  "version": "4.9.0",
+  "version": "4.11.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,

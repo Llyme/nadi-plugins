@@ -1,0 +1,55 @@
+{
+  "id": "speech",
+  "name": "Speech",
+  "description": "Writes down what is said, by you (the microphone) and in what the computer plays, and tells the voices apart. Each session is kept as a Markdown file. Runs on this computer; only its models are downloaded, once. Other plugins can use it.",
+  "version": "1.2.0",
+  "kind": "luau",
+  "main": "main.luau",
+  "provides": { "speech": "1.0" },
+  "helper": { "windows": "bin/speech-helper.exe" },
+  "budget": { "call_ms": 100, "memory_mb": 24 },
+  "permissions": {
+    "microphone": true,
+    "system_audio": true,
+    "net": ["huggingface.co", "github.com"]
+  },
+  "settings": {
+    "model": {
+      "label": "Model",
+      "type": "choice",
+      "default": "small",
+      "options": [
+        { "value": "tiny", "label": "Fast" },
+        { "value": "base", "label": "Balanced" },
+        { "value": "small", "label": "Accurate" }
+      ]
+    },
+    "mic": { "label": "Microphone", "type": "toggle", "default": true },
+    "system": { "label": "System Audio", "type": "toggle", "default": true },
+    "keep_audio": {
+      "label": "Keep Audio",
+      "type": "choice",
+      "default": "7",
+      "options": [
+        { "value": "never", "label": "Never" },
+        { "value": "1", "label": "1 Day" },
+        { "value": "7", "label": "7 Days" },
+        { "value": "30", "label": "30 Days" },
+        { "value": "forever", "label": "Forever" }
+      ]
+    }
+  },
+  "actions": [
+    { "id": "sessions", "label": "Open Sessions" }
+  ],
+  "widgets": [
+    {
+      "id": "speech",
+      "name": "Speech",
+      "description": "Listening, and what was said",
+      "place": "top-right",
+      "rank": 70,
+      "compact": true
+    }
+  ]
+}

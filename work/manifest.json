@@ -1,8 +1,8 @@
 {
   "id": "work",
   "name": "Work",
-  "description": "What you work on: your editor and its project, your hours, and the session you are in.",
-  "version": "3.2.0",
+  "description": "Time coded, as WakaTime counts it, kept on this PC: by project, language and file, with the pages you read for it, against a daily goal.",
+  "version": "4.0.0",
   "kind": "luau",
   "main": "main.luau",
   "default_on": false,
@@ -29,10 +29,37 @@
     {
       "id": "work",
       "name": "Work",
-      "description": "The session you are in, and for how long",
+      "description": "Today's coding time against your goal",
       "place": "bottom",
       "rank": 30,
       "compact": true
     }
-  ]
+  ],
+  "settings": {
+    "goal_h": {
+      "label": "Daily goal (hours)",
+      "type": "number",
+      "default": 4
+    },
+    "streak_days": {
+      "label": "Days the streak counts",
+      "type": "choice",
+      "default": "weekdays",
+      "options": [
+        {
+          "value": "weekdays",
+          "label": "Weekdays"
+        },
+        {
+          "value": "every",
+          "label": "Every Day"
+        }
+      ]
+    },
+    "sites": {
+      "label": "More sites that count as research (names, comma between)",
+      "type": "text",
+      "default": ""
+    }
+  }
 }

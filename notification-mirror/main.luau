@@ -66,6 +66,8 @@ local function widget(now: number)
 		then { { kind = "list", rows = rows }, { kind = "buttons", items = { { label = "Clear", action = "clear" } } } }
 		else nil
 	return {
+		-- (nothing in it: it rests out of sight, till one comes)
+		idle = #recent == 0,
 		peek = { icon = "bell" },
 		glow = if unseen then { color = "#e8b04a" } else nil,
 		panel = if body then { body = body } else nil,

@@ -78,46 +78,50 @@ function tests.a_working_session_says_what_it_does()
 	eq(s.title, "Fix the thing", "title")
 	eq(s.sub, "Editing lib.rs", "what it does")
 	eq(s.live.tone, "working", "tone")
-	eq(s.badge.tip, "VS Code\nnadi", "badge")
 	eq(s.press, "focus:a", "press")
-	eq(kinds(s), "chips,strip,checklist,lines,stats,meter", "blocks")
-	eq(s.body[1].items[2], { icon = "shield", text = "Plan", tone = "hot" }, "plan is lit")
-	eq(s.body[1].items[3].text, "Sonnet 5.5", "model")
-	eq(s.body[1].items[4].text, "high", "effort")
-	eq(s.body[2].text, "Working for 2m 14s", "turn")
-	eq(s.body[2].side, "Thought 12s", "thought")
-	eq(#s.body[4].rows, 3, "now and two before")
-	eq(s.body[5].items[1], { value = "2", label = "Files" }, "files")
-	eq(s.body[6].text, "90k / 1.0M", "context")
+	eq(s.right, "2m 14s", "how long")
+	eq(s.tile.ring, 0.09, "its context, round its logo")
+	eq(#s.body, 0, "a row: nothing to open")
 	eq(w.panel.body[2].live.tone, "idle", "the idle one too")
-	eq(find(w.panel.body[2], "strip").text, "Quiet", "quiet")
 end
 
 function tests.a_session_that_waits_shows_what_it_asks_and_how_to_answer()
 	local s = rich(session("w", "busy", T0 - 41000, { waiting_for = "permission", pending = { tool = "Bash", icon = "term", detail = "cargo build --release" } }))
-	local ask = find(look(T0, { s }).widgets.sessions.panel.body[1], "ask")
-	eq(ask.label, "Wants to run", "label")
-	eq(ask.text, "cargo build --release", "text")
-	eq(ask.side, "waiting 41s", "side")
-	eq(#ask.buttons, 0, "nothing to press")
+	local row = look(T0, { s }).widgets.sessions.panel.body[1]
+	eq(row.sub, "Wants to run cargo build --release", "what it asks")
+	eq(row.buttons, nil, "nothing to press")
 	s.asking = { id = "r1", kind = "permission", tool = "Bash", icon = "term", detail = "cargo build --release", age_ms = 41000 }
-	ask = find(look(T0, { s }).widgets.sessions.panel.body[1], "ask")
-	eq(ask.buttons[1], { label = "Allow", action = "allow:r1", tone = "ok" }, "allow")
-	eq(ask.action, "denywith:r1", "with words")
+	row = look(T0, { s }).widgets.sessions.panel.body[1]
+	eq(row.buttons[1], { label = "Allow", action = "allow:r1", tone = "ok" }, "allow")
+	eq(row.buttons[2].action, "deny:r1", "deny")
 	eq(press("allow:r1").answer, { id = "r1", behavior = "allow", text = "" }, "allowed")
 	eq(press("denywith:r1", "use the other file").answer, { id = "r1", behavior = "deny", text = "use the other file" }, "denied with words")
 	eq(press("answer_on").claude_hooks, { action = "install", permission = true, stop = false, wait_s = 20 }, "set up")
 	eq(press("answer_off").claude_hooks.action, "remove", "removed")
 end
 
+function tests.a_question_is_answered_from_its_row()
+	local s = rich(session("q", "busy", T0 - 5000, { waiting_for = "permission" }))
+	s.asking = { id = "r9", kind = "permission", tool = "AskUserQuestion", questions = {
+		{ question = "Which look?", header = "Look", options = { { label = "Glow (Recommended)" }, { label = "Plain" } } },
+		{ question = "Where?", header = "Place", options = { { label = "Top" }, { label = "Bottom" } } },
+	} }
+	local row = look(T0, { s }).widgets.sessions.panel.body[1]
+	eq(row.sub, "Which look?", "the first question")
+	eq(row.body[1].items[1].tone, "ok", "the recommended one lit")
+	eq(row.body[1].items[2].action, "pick:r9:1:2", "a choice")
+	check(press("pick:r9:1:1").answer == nil, "one more to go")
+	row = look(T0, { s }).widgets.sessions.panel.body[1]
+	eq(row.sub, "Where?", "then the next")
+	eq(press("own:r9:2", "On the left").answer, { id = "r9", behavior = "allow", text = "", answers = { ["Which look?"] = "Glow (Recommended)", ["Where?"] = "On the left" } }, "all at once")
+end
+
 function tests.a_finished_session_says_what_it_did()
 	local f = rich(session("f", "idle", T0 - 180000))
 	f.turn_started = T0 - 180000 - 362000
 	local s = look(T0, { f }).widgets.sessions.panel.body[1]
-	eq(s.body[2].text, "Done in 6m 02s", "took")
-	eq(s.body[2].side, "3 min ago", "ago")
-	eq(s.body[3], { kind = "text", label = "Result", text = "The tiles are half the size now." }, "result")
-	eq(s.body[4].rows[2], { name = "hub.css", added = 142, removed = 58 }, "files")
+	eq(s.sub, "Done, 2 files changed", "what it did")
+	eq(s.right, "3 min ago", "ago")
 	check(find(s, "field") == nil, "no field")
 	f.asking = { id = "s1", kind = "stop" }
 	eq(find(look(T0, { f }).widgets.sessions.panel.body[1], "field").action, "reply:s1", "reply field")
@@ -191,8 +195,7 @@ end
 function tests.model_names()
 	local w = look(T0, { session("a", "busy", T0, { model = "claude-haiku-4-5-20251001", context_tokens = 180000 }) }).widgets.sessions
 	local s = w.panel.body[1]
-	eq(s.body[1].items[1].text, "Haiku 4.5", "haiku")
-	eq(find(s, "meter").color, "#e87a7a", "nearly full")
+	eq(s.tile.ring_color, "#e87a7a", "nearly full")
 end
 
 -- usage

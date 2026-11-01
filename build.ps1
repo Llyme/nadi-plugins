@@ -24,6 +24,9 @@ try {
     Copy-Item (Join-Path $dir.FullName "manifest.json") $to
     # (its scripts, not its tests; and its pictures)
     Get-ChildItem $dir.FullName -File | Where-Object { ($_.Extension -eq ".luau" -and $_.Name -ne "test.luau") -or $_.Extension -in ".gif", ".png", ".webp", ".jpg", ".jpeg", ".svg" } | ForEach-Object { Copy-Item $_.FullName $to }
+    # (its own program, and what it needs to run: bin/, built from helpers/)
+    $bin = Join-Path $dir.FullName "bin"
+    if (Test-Path $bin) { Copy-Item $bin (Join-Path $to "bin") -Recurse }
     Get-ChildItem $to | ForEach-Object { "dist/{0}/{1}  {2:N0} bytes" -f $dir.Name, $_.Name, $_.Length }
   }
   # the file a release carries

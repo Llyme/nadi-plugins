@@ -1,0 +1,21 @@
+{
+  "id": "captions",
+  "name": "Captions",
+  "description": "Live captions of what is said, with who said it. Uses Speech.",
+  "version": "1.1.0",
+  "kind": "luau",
+  "main": "main.luau",
+  "needs": { "speech": "^1.0" },
+  "settings": {
+    "banner": { "label": "Talking Banner", "type": "toggle", "default": true }
+  },
+  "widgets": [
+    {
+      "id": "live",
+      "name": "Captions",
+      "description": "The last thing said",
+      "place": "bottom",
+      "rank": 60
+    }
+  ]
+}

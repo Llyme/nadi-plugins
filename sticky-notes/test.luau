@@ -137,3 +137,12 @@ function tests.notion_secret_refused_said()
 	local out = handle({ event = "fetched", now = T0 + 2000, settings = {}, id = "db", status = 401, body = "{}", open = {} })
 	eq(out.note, "Notion did not take the secret.", "said in Settings")
 end
+
+function tests.dropped_words_and_files_become_notes()
+	start(nil)
+	local out = act("drop", { text = "  Buy milk  " })
+	eq(out.store.notes[1].text, "Buy milk", "words dropped: a note")
+	out = act("drop", { paths = { "C:\\Docs\\plan.pdf", "C:\\Docs\\map.png" } })
+	eq(out.store.notes[2].text, "plan.pdf\nmap.png", "files dropped: their names")
+	eq(out.widgets.notes.drop, "drop", "it takes drops")
+end

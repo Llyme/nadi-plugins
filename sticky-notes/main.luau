@@ -185,6 +185,8 @@ local function draw(open: boolean)
 		notes = {
 			peek = peek,
 			panel = { width = 400, body = if n then edit_body(n) else wall_body() },
+			-- (words dragged onto it, or files: a note of them)
+			drop = "drop",
 			tip = if #list == 0 then "Sticky Notes" else nil,
 		},
 	}
@@ -566,6 +568,22 @@ function handle(ev)
 	if a == "add" then
 		if text ~= "" then
 			new_note(now, text)
+			changed = true
+		end
+	elseif a == "drop" then
+		-- (words: a note of them; files: a note of their names)
+		local words = text
+		if words == "" and type(args.paths) == "table" then
+			local names = {}
+			for _, p in args.paths do
+				table.insert(names, string.match(tostring(p), "[^\\/]+$") or tostring(p))
+			end
+			words = table.concat(names, "\n")
+		end
+		words = string.gsub(words, "^%s+", "")
+		words = string.gsub(words, "%s+$", "")
+		if words ~= "" then
+			new_note(now, string.sub(words, 1, 4000))
 			changed = true
 		end
 	elseif a == "new" then

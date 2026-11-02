@@ -1,0 +1,53 @@
+{
+  "id": "sticky-notes",
+  "name": "Sticky Notes",
+  "description": "Notes on the island: a wall of them in its panel, any one pinned to the screen as a sticky of its own. Kept on this PC, and, if you connect it, in step with a Notion database.",
+  "version": "1.0.0",
+  "kind": "luau",
+  "main": "main.luau",
+  "default_on": false,
+  "tick": "10s",
+  "budget": {
+    "call_ms": 300,
+    "memory_mb": 32
+  },
+  "permissions": {
+    "storage": true,
+    "net": [
+      "api.notion.com"
+    ]
+  },
+  "widgets": [
+    {
+      "id": "notes",
+      "name": "Sticky Notes",
+      "description": "How many notes; open, the wall of them",
+      "place": "top-right",
+      "rank": 40
+    },
+    {
+      "id": "note",
+      "name": "A Pinned Note",
+      "description": "A note pinned to the screen, as a window of its own",
+      "many": true
+    }
+  ],
+  "actions": [
+    {
+      "id": "notion_connect",
+      "label": "Connect Notion",
+      "ask": "Notion integration secret",
+      "then": "notion_token"
+    },
+    {
+      "id": "notion_database",
+      "label": "Notion Database",
+      "ask": "Link to the database",
+      "then": "notion_db"
+    },
+    {
+      "id": "notion_off",
+      "label": "Disconnect Notion"
+    }
+  ]
+}

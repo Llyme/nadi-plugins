@@ -16,7 +16,7 @@ local PRUNE_MS = 5000
 local PRUNE_GRACE_MS = 10000
 local BROWSERS = { chrome = true, msedge = true, firefox = true, brave = true, opera = true, vivaldi = true, arc = true }
 local NAMES = { msedge = "Edge", chrome = "Chrome", brave = "Brave", opera = "Opera", vivaldi = "Vivaldi", firefox = "Firefox", arc = "Arc" }
-local GLYPH = { walkthrough = "steps", wiki = "book", news = "news", video = "play", recipe = "pot", qna = "ask", api = "code", product = "tag", search = "search", webapp = "branch" }
+local GLYPH = { walkthrough = "steps", wiki = "book", news = "news", video = "play", recipe = "pot", qna = "ask", api = "code", product = "tag", webapp = "branch" }
 local NEW_TAB = { ["new tab"] = true, ["new tab page"] = true, ["start page"] = true, home = true, ["about:blank"] = true, [""] = true }
 
 local mru = {} -- the pages, the one last in front first: { id, browser, title, path, app, last_seen, info }
@@ -609,15 +609,6 @@ local function card_of(e)
 		if words then
 			table.insert(body, { kind = "text", text = words, lines = 3 })
 		end
-	elseif id == "search" then
-		local top = field(k, "Top results")
-		if top then
-			local rows = {}
-			for t in string.gmatch(top, "[^,]+") do
-				table.insert(rows, { title = string.match(t, "^%s*(.-)%s*$") })
-			end
-			table.insert(body, { kind = "list", rows = rows })
-		end
 	elseif id == "webapp" then
 		local chips = {}
 		local st = field(k, "State")
@@ -668,7 +659,8 @@ local function shown_pages(now: number)
 			if #list >= CARDS then
 				break
 			end
-			if now - e.last_seen <= TTL_MS and e.info and e.info.kind and e.info.kind.id ~= "video" then
+			-- (a video has its own widget; search results say nothing a page of them does not: neither is shown)
+			if now - e.last_seen <= TTL_MS and e.info and e.info.kind and e.info.kind.id ~= "video" and e.info.kind.id ~= "search" then
 				table.insert(list, e)
 			end
 		end

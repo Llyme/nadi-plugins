@@ -17,7 +17,7 @@
     "games": {
       "label": "Programs that count as games",
       "type": "text",
-      "default": "endfield.exe, genshinimpact.exe, eldenring.exe, hl2.exe"
+      "default": ""
     },
     "remind_min": {
       "label": "Say so after (minutes)",

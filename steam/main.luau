@@ -60,7 +60,7 @@ local function draw(now: number)
 	-- (the games, for the launcher's search: each started through Steam, with its own icon)
 	local apps = {}
 	for _, g in library do
-		table.insert(apps, { name = g.name, open = "steam://rungameid/" .. g.id, image = if g.icon then "img:" .. g.icon else nil })
+		table.insert(apps, { name = g.name, open = "steam://rungameid/" .. g.id, image = if g.icon then "img:" .. g.icon else nil, badge = "own:steam-icon.png", tip = "Steam" })
 	end
 	return { widgets = { library = { peek = peek, panel = { width = 380, body = body }, tip = tip } }, apps = apps }
 end

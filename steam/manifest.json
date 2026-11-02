@@ -2,7 +2,7 @@
   "id": "steam",
   "name": "Steam",
   "description": "Your installed Steam games, the last played first: press one to play it. At rest, the game you play, or one that updates. Your games are found in the launcher's search too.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "kind": "luau",
   "main": "main.luau",
   "helper": {

@@ -3,7 +3,7 @@ local T0 = 1800000000000
 -- (each page as its program reads it: what the plugin is told with it)
 local READ_RECIPE = { buttons = {}, domain = "allrecipes.com", kind = { fields = { { key = "Dish", rough = false, value = "Pancakes" }, { key = "Time", rough = false, value = "25 min" }, { key = "Ingredients", rough = false, value = "7 items" } }, id = "recipe", label = "Recipe", main = "Pancakes", sub = "25 min" } }
 local READ_STEPS = { buttons = {}, domain = "game8.co", kind = { fields = { { key = "Steps", rough = false, value = "6" }, { key = "Starts with", rough = false, value = "Room 1" } }, id = "walkthrough", label = "Walkthrough", main = "Chapter 3 Walkthrough", sub = "6 steps" } }
-local READ_GUIDE = { buttons = {}, domain = "gamefaqs.gamespot.com", kind = { fields = { { key = "Guide", rough = true, value = "Persona 5 Strikers Walkthrough" } }, guide = { key = "g1", text = false }, id = "walkthrough", label = "Walkthrough", main = "Persona 5 Strikers Walkthrough", sub = "Walkthrough" } }
+local READ_GUIDE = { buttons = {}, domain = "gamefaqs.gamespot.com", kind = { fields = { { key = "Guide", rough = true, value = "Skyward Ruins Walkthrough" } }, guide = { key = "g1", text = false }, id = "walkthrough", label = "Walkthrough", main = "Skyward Ruins Walkthrough", sub = "Walkthrough" } }
 local READ_RECIPE2 = { buttons = {}, domain = "allrecipes.com", kind = { fields = { { key = "Dish", rough = false, value = "Pancakes" }, { key = "Time", rough = false, value = "25 min" } }, id = "recipe", label = "Recipe", main = "Pancakes", sub = "25 min" } }
 
 
@@ -102,7 +102,7 @@ end
 
 function tests.a_guide_read_whole_gives_its_steps_and_all_their_words()
 	handle(ev("start", T0))
-	handle(ev("processes", T0, { windows = { win("chrome.exe", "Persona 5 Strikers Walkthrough - Google Chrome", true) } }))
+	handle(ev("processes", T0, { windows = { win("chrome.exe", "Skyward Ruins Walkthrough - Google Chrome", true) } }))
 	local blocks = {
 		{ "p", "And here we are in Sapporo." },
 		{ "h", 3, "8/9" },
@@ -113,9 +113,9 @@ function tests.a_guide_read_whole_gives_its_steps_and_all_their_words()
 		{ "h", 4, "Suzushino (jail)" },
 		{ "p", "A battle at once." },
 	}
-	local nodes = { { k = "h", l = 1, t = "Persona 5 Strikers Walkthrough", x = 0, y = -900, w = 100, h = 30 }, { k = "h", l = 3, t = "8/9", x = 0, y = 100, w = 100, h = 20 }, { k = "h", l = 3, t = "8/10", x = 0, y = 700, w = 100, h = 20 } }
-	local page = { browser = "chrome", title = "Persona 5 Strikers Walkthrough", url = "https://gamefaqs.gamespot.com/ps4/1/faqs/2/8-8-8-13", nodes = nodes, meta = {}, ld = {}, words = 3000, vh = 900, guide = { key = "g1", text = false, heads = {}, blocks = blocks }, read = READ_GUIDE }
-	local r = handle(ev("helper", T0 + 1000, { data = { kind = "browser", browser = { browsers = { "chrome" }, tabs = { chrome = { "persona 5 strikers walkthrough" } }, open = { chrome = { "Persona 5 Strikers Walkthrough" } }, moves = {}, pages = { page } } } }))
+	local nodes = { { k = "h", l = 1, t = "Skyward Ruins Walkthrough", x = 0, y = -900, w = 100, h = 30 }, { k = "h", l = 3, t = "8/9", x = 0, y = 100, w = 100, h = 20 }, { k = "h", l = 3, t = "8/10", x = 0, y = 700, w = 100, h = 20 } }
+	local page = { browser = "chrome", title = "Skyward Ruins Walkthrough", url = "https://gamefaqs.gamespot.com/ps4/1/faqs/2/8-8-8-13", nodes = nodes, meta = {}, ld = {}, words = 3000, vh = 900, guide = { key = "g1", text = false, heads = {}, blocks = blocks }, read = READ_GUIDE }
+	local r = handle(ev("helper", T0 + 1000, { data = { kind = "browser", browser = { browsers = { "chrome" }, tabs = { chrome = { "persona 5 strikers walkthrough" } }, open = { chrome = { "Skyward Ruins Walkthrough" } }, moves = {}, pages = { page } } } }))
 	local card = find(r.widgets.pages.panel.body, "card")
 	local segs = find(card.body, "segs")
 	eq(segs.n, 3, "the words before, 8/9, 8/10")

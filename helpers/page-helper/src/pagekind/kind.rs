@@ -1413,7 +1413,7 @@ mod tests {
         let mut d = ext_data("{}");
         let g: crate::pagekind::ext::GuideLite = serde_json::from_str(r#"{"key":"k1","heads":["8/8 - 8/13","8/8"]}"#).unwrap();
         d.guide = Some(g);
-        let ev = Evidence { url: Some("https://gamefaqs.gamespot.com/ps4/1-x/faqs/2/8-8-8-13"), title: "8/8 - 8/13 - Persona 5 Strikers Walkthrough & Guide - GameFAQs", page: None, ext: Some(&d) };
+        let ev = Evidence { url: Some("https://gamefaqs.gamespot.com/ps4/1-x/faqs/2/8-8-8-13"), title: "8/8 - 8/13 - Skyward Ruins Walkthrough & Guide - GameFAQs", page: None, ext: Some(&d) };
         let k = read(&ev).expect("kind");
         assert_eq!(k.id, "walkthrough");
         // the key is made when the extension's message is taken in; here none was made

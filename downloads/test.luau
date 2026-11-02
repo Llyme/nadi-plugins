@@ -3,7 +3,7 @@ local function dl(id: string, kind: string, received: number, total: number?)
 end
 
 local function look(now: number, observed, ended: any?)
-	return handle({ event = "downloads", now = now, settings = {}, observed = observed, ended = ended or {} })
+	return handle({ event = "helper", now = now, settings = {}, data = { kind = "downloads", observed = observed, ended = ended or {} } })
 end
 
 local function find(body, kind: string)
@@ -44,16 +44,21 @@ function tests.a_finished_one_opens_shows_or_clears()
 	check(t.done, "a line")
 	eq(t.action, "open:a", "pressed: opened")
 	eq(t.buttons[1].action, "show:a", "its folder")
-	eq(handle({ event = "action", action = "open:a", now = 2000, settings = {} }).open_file, "C:\Downloads\a.bin", "opened")
-	eq(handle({ event = "action", action = "show:a", now = 2000, settings = {} }).reveal, "C:\Downloads\a.bin", "shown")
+	eq(handle({ event = "action", action = "open:a", now = 2000, settings = {} }).helper, { cmd = "open", path = "C:\Downloads\a.bin" }, "opened")
+	eq(handle({ event = "action", action = "show:a", now = 2000, settings = {} }).helper, { cmd = "reveal", path = "C:\Downloads\a.bin" }, "shown")
 	eq((handle({ event = "action", action = "clear:a", now = 2000, settings = {} }).widgets.downloads).idle, true, "cleared (idle)")
 end
 
 function tests.steam_shows_its_art_and_no_progress()
-	look(0, { dl("steam:2161700", "steam", 0, 5000000000) })
-	local w = look(1000, { dl("steam:2161700", "steam", 1000000, 5000000000) }).widgets.downloads
+	local art = "C:/Steam/2161700/library_600x900.jpg"
+	local d0 = dl("steam:2161700", "steam", 0, 5000000000)
+	d0.art = art
+	look(0, { d0 })
+	local d = dl("steam:2161700", "steam", 1000000, 5000000000)
+	d.art = art
+	local w = look(1000, { d }).widgets.downloads
 	check(w.peek.ring == nil, "no ring")
 	local t = find(w.panel.body, "transfer")
-	eq(t.image, "steamart:2161700", "its art")
+	eq(t.image, "img:C:/Steam/2161700/library_600x900.jpg", "its art")
 	check(t.part == nil, "no bar to fill")
 end

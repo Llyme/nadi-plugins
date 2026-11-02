@@ -2,15 +2,17 @@
   "id": "page-reader",
   "name": "NADI Chrome",
   "description": "What you are reading, as a card made for its kind: walkthroughs and recipes followed step by step, articles, answers, prices (needs the NADI Chrome browser extension).",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "kind": "luau",
   "main": "main.luau",
+  "helper": {
+    "windows": "bin/page-helper.exe"
+  },
   "default_on": false,
   "permissions": {
     "processes": true,
     "titles": true,
     "programs": true,
-    "browser": true,
     "storage": true
   },
   "budget": {

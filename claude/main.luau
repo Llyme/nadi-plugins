@@ -839,6 +839,12 @@ function handle(ev)
 	local wanted = settings.usage ~= false
 	local out: any = {}
 	local e = ev.event
+	-- (its own program (bin/claude-helper.exe) reads the sessions from Claude Code's own files, every two seconds)
+	if e == "helper" and ev.data and ev.data.kind == "claude" then
+		e = "claude"
+		ev.claude = ev.data.claude
+		ev.claude_hooks = ev.data.claude_hooks
+	end
 	if e == "start" then
 		sessions, seen, primed, front, desktop = {}, {}, false, nil, nil
 		snap, pending, last_poll, last_manual, inflight, renewed, last_pct = {}, nil, nil, nil, nil, false, {}
@@ -883,19 +889,19 @@ function handle(ev)
 		local text = (ev.args and ev.args.text) or ""
 		local id = string.match(a, "^allow:(.+)$")
 		if id then
-			return { answer = { id = id, behavior = "allow", text = "" } }
+			return { helper = { cmd = "answer", id = id, behavior = "allow", text = "" } }
 		end
 		id = string.match(a, "^deny:(.+)$")
 		if id then
-			return { answer = { id = id, behavior = "deny", text = "" } }
+			return { helper = { cmd = "answer", id = id, behavior = "deny", text = "" } }
 		end
 		id = string.match(a, "^denywith:(.+)$")
 		if id then
-			return { answer = { id = id, behavior = "deny", text = text } }
+			return { helper = { cmd = "answer", id = id, behavior = "deny", text = text } }
 		end
 		id = string.match(a, "^reply:(.+)$")
 		if id then
-			return { answer = { id = id, behavior = "reply", text = text } }
+			return { helper = { cmd = "answer", id = id, behavior = "reply", text = text } }
 		end
 		-- a question's choice (or words of your own): kept till every question has one, then all given at once
 		local pid, pq, po = string.match(a, "^pick:([^:]+):(%d+):(%d+)$")
@@ -923,7 +929,7 @@ function handle(ev)
 					if all then
 						local answers = picks[rid]
 						picks[rid] = nil
-						return { answer = { id = rid, behavior = "allow", text = "", answers = answers } }
+						return { helper = { cmd = "answer", id = rid, behavior = "allow", text = "", answers = answers } }
 					end
 					-- (the next question shows)
 					return { widgets = { usage = {}, sessions = sessions_widget(now, usage_of(now, wanted)) } }
@@ -932,9 +938,9 @@ function handle(ev)
 		end
 		local wait = settings.wait or 20
 		if a == "answer_on" then
-			return { claude_hooks = { action = "install", permission = true, stop = settings.replies == true, wait_s = wait } }
+			return { helper = { cmd = "hooks", action = "install", permission = true, stop = settings.replies == true, wait_s = wait } }
 		elseif a == "answer_off" then
-			return { claude_hooks = { action = "remove", permission = true, stop = true, wait_s = wait } }
+			return { helper = { cmd = "hooks", action = "remove", permission = true, stop = true, wait_s = wait } }
 		end
 		id = string.match(a, "^focus:(.+)$")
 		if id == "desktop" then

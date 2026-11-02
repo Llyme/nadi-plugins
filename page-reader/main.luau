@@ -4,10 +4,11 @@
 -- one before or after), an article's minutes left, a question's answer, a product's price, a doc's signature. At rest: the one thing
 -- that matters of it, in a ring of how far through it you are. The other pages, a line each, under the card.
 --
--- The page describes itself, exactly, and costs the browser next to nothing. The plugin says which sites are never read and which
--- buttons are safe to press (the extension reads nothing until it is told), keeps the pages that have a card, and asks NADI what kind
--- each is (`nadi.page_read`). Private windows, blocked sites (banking, mail, health) and pages the extension did not describe (a
--- sign-in page) are never shown; a video stays with Now Playing.
+-- The page describes itself, exactly, and costs the browser next to nothing. Its own program (bin/page-helper.exe) holds the link to
+-- the extension and reads each page it describes (what kind it is, what is worth saying of it: `read`; a guide's words in full; its
+-- picture, kept as a file). The plugin tells it which pages to follow, which sites are never read and that pictures may come (the
+-- extension reads nothing until it is told), and keeps the pages that have a card. Private windows, blocked sites (banking, mail,
+-- health) and pages the extension did not describe (a sign-in page) are never shown; a video stays with Now Playing.
 local CARDS = 8 -- pages with a section, across all browsers
 local TTL_MS = 180000 -- a page not in front for this long drops out
 local FRESH_MS = 30000 -- shown while a browser window was seen this recently
@@ -27,6 +28,17 @@ local browsers = {} -- the browsers with the extension connected
 local last_prune = 0
 local absent = {} -- "browser|title" -> since when it has been missing from the tab lists
 local told: boolean? = nil
+
+-- a private window's title says so (InPrivate, Incognito, Private Browsing): never followed
+local function private_title(t: string): boolean
+	local s = string.lower(t)
+	for _, w in { "inprivate", "incognito", "private browsing", "private window" } do
+		if string.find(s, w, 1, true) then
+			return true
+		end
+	end
+	return false
+end
 local pinned: string? = nil -- a page pressed in the list: its card on top
 local settings_images = true
 local zoom = 1.0 -- how big its words are, as you set it (kept)
@@ -147,7 +159,7 @@ local function observe(list, now: number)
 				table.insert(windows, b)
 			end
 			local cleaned = clean_title(w.title or "")
-			if not nadi.page_private(w.title or "") and not NEW_TAB[string.lower(cleaned)] then
+			if not private_title(w.title or "") and not NEW_TAB[string.lower(cleaned)] then
 				push(b, cleaned, w.path or "", if (w.name or "") ~= "" then w.name else b, now)
 			end
 			if w.front then
@@ -156,7 +168,7 @@ local function observe(list, now: number)
 		end
 	end
 	if front then
-		private = nadi.page_private(front.title or "")
+		private = private_title(front.title or "")
 	end
 	if any then
 		seen = now
@@ -210,7 +222,7 @@ local function read_page(p, now: number)
 				e.info = nil
 				return
 			end
-			local r = nadi.page_read(p, now)
+			local r = p.read or { blocked = true }
 			e.info = if r.blocked then nil else r
 			-- (what the card follows a guide by: the headings, paragraphs and items, where they are now)
 			local nodes = {}
@@ -226,7 +238,7 @@ local function read_page(p, now: number)
 			-- (a guide the extension read whole: its words, fetched once for each version of them)
 			local key = p.guide and p.guide.key
 			if key and key ~= e.guide_key then
-				e.guide_key, e.guide = key, if p.guide.blocks then p.guide else nadi.page_guide(key)
+				e.guide_key, e.guide = key, p.guide
 			elseif not key then
 				e.guide_key, e.guide = nil, nil
 			end
@@ -516,7 +528,7 @@ local function card_of(e)
 	end
 	table.insert(body, site)
 	if info.image and settings_images then
-		table.insert(body, { kind = "picture", image = "page:" .. tostring(info.image), height = if id == "product" or id == "recipe" then 110 else 90 })
+		table.insert(body, { kind = "picture", image = "img:" .. tostring(info.image), height = if id == "product" or id == "recipe" then 110 else 90 })
 	end
 	table.insert(body, { kind = "title", text = if k.main and k.main ~= "" then k.main else e.title, action = "focus:" .. cid })
 	if #steps >= 2 or (#steps == 1 and e.guide) then
@@ -684,16 +696,20 @@ local function render(ev, extra)
 			table.insert(watch, { e.browser, e.title })
 		end
 	end
-	local ask: any = { watch = watch }
+	-- (what its program is asked: the pages to follow; what the extension may read, once and when it changes; a button, a tab, a
+	-- heading)
+	local ask: { any } = { { cmd = "watch", pages = watch } }
 	local images = settings_images
 	if told ~= images then
 		told = images
-		ask.config = nadi.page_config(images)
+		table.insert(ask, { cmd = "config", images = images })
 	end
-	if extra then
-		for k, v in extra do
-			ask[k] = v
+	for op, v in extra or {} do
+		local c: any = { cmd = op }
+		for k, x in v do
+			c[k] = x
 		end
+		table.insert(ask, c)
 	end
 	local note
 	if #browsers == 0 then
@@ -742,7 +758,7 @@ local function render(ev, extra)
 			tip = name,
 		}
 	end
-	return { widgets = { pages = widget }, browser = ask, note = note }
+	return { widgets = { pages = widget }, helper = ask, note = note }
 end
 
 local function find_card(card: string?)
@@ -763,8 +779,8 @@ function handle(ev)
 	elseif e == "processes" then
 		observe(ev.windows or {}, ev.now)
 		return render(ev)
-	elseif e == "browser" then
-		local feed = ev.browser or {}
+	elseif e == "helper" and ev.data and ev.data.kind == "browser" then
+		local feed = ev.data.browser or {}
 		browsers = feed.browsers or {}
 		for _, m in feed.moves or {} do
 			rename(m[1], m[2], m[3])

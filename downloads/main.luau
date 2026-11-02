@@ -1,9 +1,10 @@
 --!strict
 -- Downloads: what your browsers, Steam and qBittorrent are downloading right now.
 --
--- NADI watches what those apps leave on disk and tells the plugin what is downloading (`observed`) and what stopped showing up
--- (`ended`: done, or given up). The plugin keeps the list: it smooths the speed, drops a download that stands still (it comes back
--- when it moves), and keeps a finished one until you press it.
+-- Its own program (bin/downloads-helper.exe) watches what those apps leave on disk and tells the plugin what is downloading
+-- (`observed`) and what stopped showing up (`ended`: done, or given up); it opens or shows a finished one when asked. The plugin
+-- keeps the list: it smooths the speed, drops a download that stands still (it comes back when it moves), and keeps a finished one
+-- until you press it. How far each app's downloads are goes on its icon in the dock (`progress`).
 
 local STALL_MS = 5000 -- nothing came in for this long: stuck or paused, so it goes
 local HISTORY = 30 -- samples of the combined speed (one each look, about every 1.5 s)
@@ -78,6 +79,7 @@ local function merge(now: number, observed, ended)
 					id = o.id,
 					source = o.source,
 					kind = o.kind,
+					art = o.art,
 					name = o.name,
 					received = o.received,
 					total = o.total,
@@ -184,7 +186,36 @@ end
 
 local SOURCE_ICON = { browser = "globe", steam = "gamepad", torrent = "download" }
 
-local function draw()
+-- (the programs each source downloads with: their downloads together, how far, on their icons in the dock)
+local PROGRAMS = {
+	Chrome = { "chrome.exe" },
+	Edge = { "msedge.exe" },
+	Brave = { "brave.exe" },
+	Vivaldi = { "vivaldi.exe" },
+	Opera = { "opera.exe" },
+	Firefox = { "firefox.exe" },
+	Steam = { "steam.exe", "steamwebhelper.exe" },
+	qBittorrent = { "qbittorrent.exe" },
+}
+
+local function by_program()
+	local sums = {}
+	for _, it in items do
+		if not it.done and it.total and it.total > 0 then
+			for _, p in PROGRAMS[it.source] or {} do
+				local s = sums[p] or { 0, 0 }
+				sums[p] = { s[1] + it.received, s[2] + it.total }
+			end
+		end
+	end
+	local out = {}
+	for p, s in sums do
+		table.insert(out, { program = p, part = math.clamp(s[1] / s[2], 0, 1) })
+	end
+	return out
+end
+
+local function draw_widget()
 	if #items == 0 then
 		-- (nothing coming in: idle, so NADI can hide it)
 		return { widgets = { downloads = { idle = true, peek = { icon = "download", text = "No downloads" }, tip = "No downloads" } } }
@@ -224,7 +255,7 @@ local function draw()
 		local part = progress(it)
 		table.insert(body, {
 			kind = "transfer",
-			image = if appid then "steamart:" .. appid else nil,
+			image = if appid and it.art then "img:" .. it.art else nil,
 			wide = appid ~= nil,
 			icon = SOURCE_ICON[it.kind] or "download",
 			title = it.name,
@@ -278,12 +309,18 @@ local function draw()
 	}
 end
 
+local function draw()
+	local out: any = draw_widget()
+	out.progress = by_program()
+	return out
+end
+
 function handle(ev)
 	if ev.event == "start" then
 		items, stalled, stalled_n, speeds = {}, {}, 0, {}
 		return nil
-	elseif ev.event == "downloads" then
-		merge(ev.now, ev.observed, ev.ended)
+	elseif ev.event == "helper" and ev.data and ev.data.kind == "downloads" then
+		merge(ev.now, ev.data.observed, ev.data.ended)
 		return draw()
 	elseif ev.event == "action" then
 		local verb, id = string.match(ev.action or "", "^(%a+):(.+)$")
@@ -294,11 +331,11 @@ function handle(ev)
 		local it = items[i]
 		if verb == "open" and it.path then
 			local out: any = draw()
-			out.open_file = it.path
+			out.helper = { cmd = "open", path = it.path }
 			return out
 		elseif verb == "show" and it.path then
 			local out: any = draw()
-			out.reveal = it.path
+			out.helper = { cmd = "reveal", path = it.path }
 			return out
 		elseif verb == "clear" or verb == "done" then
 			table.remove(items, i)

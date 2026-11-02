@@ -1,0 +1,13 @@
+[package]
+name = "steam-helper"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde_json = "1"
+winreg = "0.52"
+
+[profile.release]
+opt-level = 3
+lto = "thin"

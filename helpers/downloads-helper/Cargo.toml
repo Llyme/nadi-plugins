@@ -1,0 +1,16 @@
+[package]
+name = "downloads-helper"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde_json = "1"
+winreg = "0.52"
+sysinfo = "0.32"
+rusqlite = { version = "0.32", features = ["bundled"] }
+windows = { version = "0.58", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"

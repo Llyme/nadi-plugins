@@ -44,7 +44,7 @@ local function rich(s)
 end
 
 local function look(now: number, list, settings: any?)
-	return handle({ event = "claude", now = now, claude = list, settings = settings or {} })
+	return handle({ event = "helper", now = now, data = { kind = "claude", claude = list }, settings = settings or {} })
 end
 
 local function press(action: string, text: string?)
@@ -94,10 +94,10 @@ function tests.a_session_that_waits_shows_what_it_asks_and_how_to_answer()
 	row = look(T0, { s }).widgets.sessions.panel.body[1]
 	eq(row.buttons[1], { label = "Allow", action = "allow:r1", tone = "ok" }, "allow")
 	eq(row.buttons[2].action, "deny:r1", "deny")
-	eq(press("allow:r1").answer, { id = "r1", behavior = "allow", text = "" }, "allowed")
-	eq(press("denywith:r1", "use the other file").answer, { id = "r1", behavior = "deny", text = "use the other file" }, "denied with words")
-	eq(press("answer_on").claude_hooks, { action = "install", permission = true, stop = false, wait_s = 20 }, "set up")
-	eq(press("answer_off").claude_hooks.action, "remove", "removed")
+	eq(press("allow:r1").helper, { cmd = "answer", id = "r1", behavior = "allow", text = "" }, "allowed")
+	eq(press("denywith:r1", "use the other file").helper, { cmd = "answer", id = "r1", behavior = "deny", text = "use the other file" }, "denied with words")
+	eq(press("answer_on").helper, { cmd = "hooks", action = "install", permission = true, stop = false, wait_s = 20 }, "set up")
+	eq(press("answer_off").helper.action, "remove", "removed")
 end
 
 function tests.a_question_is_answered_from_its_row()
@@ -110,10 +110,10 @@ function tests.a_question_is_answered_from_its_row()
 	eq(row.sub, "Which look?", "the first question")
 	eq(row.body[1].items[1].tone, "ok", "the recommended one lit")
 	eq(row.body[1].items[2].action, "pick:r9:1:2", "a choice")
-	check(press("pick:r9:1:1").answer == nil, "one more to go")
+	check(press("pick:r9:1:1").helper == nil, "one more to go")
 	row = look(T0, { s }).widgets.sessions.panel.body[1]
 	eq(row.sub, "Where?", "then the next")
-	eq(press("own:r9:2", "On the left").answer, { id = "r9", behavior = "allow", text = "", answers = { ["Which look?"] = "Glow (Recommended)", ["Where?"] = "On the left" } }, "all at once")
+	eq(press("own:r9:2", "On the left").helper, { cmd = "answer", id = "r9", behavior = "allow", text = "", answers = { ["Which look?"] = "Glow (Recommended)", ["Where?"] = "On the left" } }, "all at once")
 end
 
 function tests.a_finished_session_says_what_it_did()
@@ -125,7 +125,7 @@ function tests.a_finished_session_says_what_it_did()
 	check(find(s, "field") == nil, "no field")
 	f.asking = { id = "s1", kind = "stop" }
 	eq(find(look(T0, { f }).widgets.sessions.panel.body[1], "field").action, "reply:s1", "reply field")
-	eq(press("reply:s1", "now the rest").answer, { id = "s1", behavior = "reply", text = "now the rest" }, "replied")
+	eq(press("reply:s1", "now the rest").helper, { cmd = "answer", id = "s1", behavior = "reply", text = "now the rest" }, "replied")
 end
 
 function tests.the_ones_that_need_you_lead()

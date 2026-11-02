@@ -2,12 +2,15 @@
   "id": "downloads",
   "name": "Downloads",
   "description": "What your browsers, Steam and qBittorrent are downloading right now.",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "kind": "luau",
   "main": "main.luau",
+  "helper": {
+    "windows": "bin/downloads-helper.exe"
+  },
   "default_on": false,
   "permissions": {
-    "downloads": true
+    "dock": true
   },
   "widgets": [
     {

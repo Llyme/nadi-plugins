@@ -184,7 +184,6 @@ local function left_of(received: number, total: number?, speed: number): string?
 	return if m > 0 then h .. " h " .. m .. " min" else h .. " h"
 end
 
-local SOURCE_ICON = { browser = "globe", steam = "gamepad", torrent = "download" }
 
 -- (the programs each source downloads with: their downloads together, how far, on their icons in the dock)
 local PROGRAMS = {
@@ -257,7 +256,8 @@ local function draw_widget()
 			kind = "transfer",
 			image = if appid and it.art then "img:" .. it.art else nil,
 			wide = appid ~= nil,
-			icon = SOURCE_ICON[it.kind] or "download",
+			-- (no picture but a game's: its words from its start)
+			icon = if appid then "gamepad" else nil,
 			title = it.name,
 			sub = if speed_text(it.speed) ~= "" then speed_text(it.speed) else it.source,
 			right = if part then left_of(it.received, it.total, it.speed) or math.floor(part * 100) .. "%" else nil,

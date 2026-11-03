@@ -65,9 +65,9 @@ function tests.pinned_to_the_screen_and_closed()
 	local id = act("add", { text = "Wi-Fi: 1234" }).store.notes[1].id
 	local out = act("pin", { id = id })
 	local w = out.widgets["note:" .. id]
-	eq(w.window.open, true, "its window asked for")
-	eq(w.window.remember, true, "remembered")
-	eq(w.window.ground, "#2e2a17", "in its colour")
+	eq(w.panel.out.open, true, "its window asked for")
+	eq(w.panel.out.remember, true, "remembered")
+	eq(w.panel.out.ground, "#2e2a17", "in its colour")
 	eq(w.peek, nil, "a window only: no place on an edge")
 	-- (its window: shut a moment as it comes out (ignored), out, then closed)
 	eq(handle({ event = "open", now = T0 + 2000, settings = {}, widget = "note:" .. id, open = false }), nil, "shut before it was out: nothing")

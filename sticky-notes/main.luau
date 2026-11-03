@@ -4,7 +4,7 @@
 -- one opens to be written (its title, its words, its checklist, its colour, pinned to the screen, shown at rest, deleted).
 --
 -- Pinned to the screen, a note is a window of its own: a widget of this plugin ("note:<id>", a `many` widget) with a panel and no
--- peek, asking NADI for its window (`window = { open, remember, ground }`): it comes out on the monitor it was on, where it stood,
+-- peek, asking NADI for its panel out (`panel.out = { open, remember, ground }`): it comes out on the monitor it was on, where it stood,
 -- when NADI starts again. Its window closed (sent back), the note is unpinned.
 --
 -- Kept in this plugin's store (sealed for this Windows user). Connected to Notion (an integration's secret and a database, from the
@@ -196,8 +196,7 @@ local function draw(open: boolean)
 		if m.pinned and not m.deleted then
 			local c = COLORS[m.color] or COLORS.yellow
 			widgets["note:" .. m.id] = {
-				panel = { width = 240, body = { { kind = "cards", columns = 1, cards = { card_of(m, false, nil) } } } },
-				window = { open = true, remember = true, ground = c[1] },
+				panel = { width = 240, body = { { kind = "cards", columns = 1, cards = { card_of(m, false, nil) } } }, out = { open = true, remember = true, ground = c[1] } },
 			}
 			now_out[m.id] = true
 		end

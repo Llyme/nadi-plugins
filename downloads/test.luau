@@ -29,6 +29,14 @@ function tests.a_download_shows_how_far_how_fast_and_how_long()
 	check(find(w.panel.body, "linegraph") ~= nil, "the speed as a line")
 end
 
+function tests.no_picture_but_a_games()
+	look(0, { dl("a", "torrent", 0, 1000) })
+	local w = look(1000, { dl("a", "torrent", 500, 1000) }).widgets.downloads
+	local t = find(w.panel.body, "transfer")
+	eq(t.image, nil, "no picture")
+	eq(t.icon, nil, "nor a pictogram")
+end
+
 function tests.one_that_stands_still_goes_and_comes_back_when_it_moves()
 	look(0, { dl("a", "browser", 100, 1000) })
 	eq((look(6000, { dl("a", "browser", 100, 1000) }).widgets.downloads).idle, true, "stuck: gone (idle)")

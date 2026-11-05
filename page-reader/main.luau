@@ -1,14 +1,14 @@
 --!strict
 -- NADI Chrome: what you are reading, with the NADI Chrome browser extension (the `nadi-chrome` repository). The page in front gets a
 -- card made for its kind: a walkthrough or a recipe followed step by step (the step you are on read out, the browser scrolled to the
--- one before or after), an article's minutes left, a question's answer, a product's price, a doc's signature. At rest: the one thing
+-- one before or after), an article's minutes left, a question's answer, a doc's signature. At rest: the one thing
 -- that matters of it, in a ring of how far through it you are. The other pages, a line each, under the card.
 --
 -- The page describes itself, exactly, and costs the browser next to nothing. Its own program (bin/page-helper.exe) holds the link to
 -- the extension and reads each page it describes (what kind it is, what is worth saying of it: `read`; a guide's words in full; its
 -- picture, kept as a file). The plugin tells it which pages to follow, which sites are never read and that pictures may come (the
 -- extension reads nothing until it is told), and keeps the pages that have a card. Private windows, blocked sites (banking, mail,
--- health) and pages the extension did not describe (a sign-in page) are never shown; a video stays with Now Playing.
+-- health), shops' pages and pages the extension did not describe (a sign-in page) are never shown; a video stays with Now Playing.
 local CARDS = 8 -- pages with a section, across all browsers
 local TTL_MS = 180000 -- a page not in front for this long drops out
 local FRESH_MS = 30000 -- shown while a browser window was seen this recently
@@ -16,7 +16,7 @@ local PRUNE_MS = 5000
 local PRUNE_GRACE_MS = 10000
 local BROWSERS = { chrome = true, msedge = true, firefox = true, brave = true, opera = true, vivaldi = true, arc = true }
 local NAMES = { msedge = "Edge", chrome = "Chrome", brave = "Brave", opera = "Opera", vivaldi = "Vivaldi", firefox = "Firefox", arc = "Arc" }
-local GLYPH = { walkthrough = "steps", wiki = "book", news = "news", video = "play", recipe = "pot", qna = "ask", api = "code", product = "tag", webapp = "branch" }
+local GLYPH = { walkthrough = "steps", wiki = "book", news = "news", video = "play", recipe = "pot", qna = "ask", api = "code", webapp = "branch" }
 local NEW_TAB = { ["new tab"] = true, ["new tab page"] = true, ["start page"] = true, home = true, ["about:blank"] = true, [""] = true }
 
 local mru = {} -- the pages, the one last in front first: { id, browser, title, path, app, last_seen, info }
@@ -497,8 +497,6 @@ local function fact_of(e): (string?, number?)
 		if mins then
 			return math.max(1, math.ceil(mins * (1 - (part or 0)))) .. " min", part
 		end
-	elseif id == "product" then
-		return field(k, "Price"), nil
 	elseif id == "qna" then
 		return field(k, "Answers"), nil
 	elseif id == "recipe" then
@@ -523,12 +521,12 @@ local function card_of(e)
 		site.chip = { icon = "steps", text = fact }
 	elseif part and (id == "news" or id == "wiki") then
 		site.ring = part
-	elseif fact and id ~= "product" then
+	elseif fact then
 		site.chip = { text = fact }
 	end
 	table.insert(body, site)
 	if info.image and settings_images then
-		table.insert(body, { kind = "picture", image = "img:" .. tostring(info.image), height = if id == "product" or id == "recipe" then 110 else 90 })
+		table.insert(body, { kind = "picture", image = "img:" .. tostring(info.image), height = if id == "recipe" then 110 else 90 })
 	end
 	table.insert(body, { kind = "title", text = if k.main and k.main ~= "" then k.main else e.title, action = "focus:" .. cid })
 	if #steps >= 2 or (#steps == 1 and e.guide) then
@@ -589,17 +587,6 @@ local function card_of(e)
 		if words then
 			table.insert(body, { kind = "answer", votes = field(k, "Answers") or "", accepted = field(k, "Accepted") ~= nil, text = words })
 		end
-	elseif id == "product" then
-		local price = field(k, "Price")
-		if price then
-			local stock = field(k, "Stock")
-			local ok = stock == nil or not string.find(string.lower(stock), "out of")
-			table.insert(body, { kind = "price", now = price, was = field(k, "Other price"), stock = stock, ok = ok })
-		end
-		local rating = field(k, "Rating")
-		if rating then
-			table.insert(body, { kind = "chips", items = { { icon = "star", text = rating } } })
-		end
 	elseif id == "api" then
 		local path = field(k, "Path")
 		if path then
@@ -659,8 +646,8 @@ local function shown_pages(now: number)
 			if #list >= CARDS then
 				break
 			end
-			-- (a video has its own widget; search results say nothing a page of them does not: neither is shown)
-			if now - e.last_seen <= TTL_MS and e.info and e.info.kind and e.info.kind.id ~= "video" and e.info.kind.id ~= "search" then
+			-- (a video has its own widget; search results say nothing a page of them does not; a shop's page is an ad: none is shown)
+			if now - e.last_seen <= TTL_MS and e.info and e.info.kind and e.info.kind.id ~= "video" and e.info.kind.id ~= "search" and e.info.kind.id ~= "product" then
 				table.insert(list, e)
 			end
 		end

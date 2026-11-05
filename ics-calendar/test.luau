@@ -119,3 +119,31 @@ function tests.opened_it_shows_today()
 	local p = handle(ev("open", T, { widget = "calendar", open = true })).widgets.calendar.panel
 	eq(find(p.body, "dayhead").date, "October 9", "today again, its day")
 end
+
+function tests.several_links_read_as_one()
+	local two = { url = "https://example.com/a.ics\nwebcal://example.org/b.ics", h24 = false, remind = false, lead_min = 15, poll_min = 10 }
+	local r = handle(ev("start", T, { settings = two }))
+	eq(#r.fetch, 2, "each link asked for")
+	eq(r.fetch[2].url, "https://example.org/b.ics", "the second, webcal over https")
+	local OTHER = table.concat({
+		"BEGIN:VCALENDAR",
+		"BEGIN:VEVENT",
+		"UID:c",
+		"SUMMARY:Review",
+		"DTSTART:20261010T090000Z",
+		"DTEND:20261010T100000Z",
+		"END:VEVENT",
+		"BEGIN:VEVENT",
+		"UID:a",
+		"SUMMARY:Standup",
+		"DTSTART:20261009T154000Z",
+		"DTEND:20261009T160000Z",
+		"END:VEVENT",
+		"END:VCALENDAR",
+	}, "\r\n")
+	handle(ev("fetched", T, { settings = two, id = r.fetch[1].id, status = 200, body = FEED }))
+	r = handle(ev("fetched", T, { settings = two, id = r.fetch[2].id, status = 200, body = OTHER }))
+	eq(r.note, "3 events read from 2 calendars.", "merged, the one in both once")
+	r = handle(ev("fetched", T, { settings = two, id = "ics:2", status = 404 }))
+	check(string.find(r.note, "Calendar 2 could not be read", 1, true) ~= nil, "which one failed, said")
+end

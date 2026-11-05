@@ -325,15 +325,59 @@ local function chime(ev, ambient: boolean)
 	return { text = clock(t, ev.settings.h24 == true), priority = 10, ambient = ambient, pill = { icon = "clock", right = t.wday .. ", " .. t.mon .. " " .. t.day, look = "big", ms = 4000 } }
 end
 
+-- The calendar links: several, one a line (or between spaces or commas); a webcal one read over https.
+local function links(ev): { string }
+	local out = {}
+	for u in string.gmatch(ev.settings.url or "", "[^%s,;]+") do
+		local l = string.gsub(u, "^webcal://", "https://")
+		if not table.find(out, l) then
+			table.insert(out, l)
+		end
+	end
+	return out
+end
+
+-- Each calendar's events and problem, by its place among the links; merged as one (an event in two of them once).
+local by_cal: { [number]: { any } } = {}
+local problems: { [number]: string } = {}
+local waiting = 0
+
+local function merge()
+	local seen, all = {}, {}
+	for i = 1, 64 do
+		for _, x in by_cal[i] or {} do
+			local key = tostring(x.uid) .. "|" .. tostring(x.start_ms)
+			if not seen[key] then
+				seen[key] = true
+				table.insert(all, x)
+			end
+		end
+	end
+	table.sort(all, function(a, b)
+		return (a.start_ms or 0) < (b.start_ms or 0)
+	end)
+	events = all
+	local p = {}
+	for i = 1, 64 do
+		if problems[i] then
+			table.insert(p, problems[i])
+		end
+	end
+	problem = if #p > 0 then table.concat(p, "\n") else nil
+end
+
 local function ask(ev, out)
-	local url = string.match(ev.settings.url or "", "^%s*(.-)%s*$") or ""
-	if url == "" then
+	local ls = links(ev)
+	if #ls == 0 then
 		return
 	end
-	url = string.gsub(url, "^webcal://", "https://")
 	fetching = true
 	last_fetch = ev.now
-	out.fetch = { { id = "ics", method = "GET", url = url, max_kb = 8000 } }
+	waiting = #ls
+	out.fetch = {}
+	for i, url in ls do
+		table.insert(out.fetch, { id = "ics:" .. i, method = "GET", url = url, max_kb = 8000 })
+	end
 end
 
 function handle(ev)
@@ -343,6 +387,7 @@ function handle(ev)
 	local e = ev.event
 	if e == "start" then
 		told, fetching, last_fetch, problem = {}, false, nil, nil
+		by_cal, problems, waiting = {}, {}, 0
 		go_to(today_of(now, tz), tz)
 		url_seen = ev.settings.url or ""
 		ask(ev, out)
@@ -354,15 +399,21 @@ function handle(ev)
 			view = "day"
 		end
 	elseif e == "fetched" then
-		fetching = false
+		-- (one of the calendars: its events kept with its place; all in, the note says how many)
+		local i = tonumber(string.match(ev.id or "", "^ics:(%d+)$")) or 1
 		if ev.status == 200 then
-			events = nadi.ics(ev.body or "", now)
-			problem = nil
-			out.note = #events .. " events read."
+			by_cal[i] = nadi.ics(ev.body or "", now)
+			problems[i] = nil
 		else
-			problem = "The calendar could not be read: " .. (if (ev.error or "") ~= "" then ev.error else "HTTP " .. tostring(ev.status))
-			out.note = problem
+			problems[i] = (if #links(ev) > 1 then "Calendar " .. i .. " could not be read: " else "The calendar could not be read: ") .. (if (ev.error or "") ~= "" then ev.error else "HTTP " .. tostring(ev.status))
 		end
+		merge()
+		waiting = math.max(0, waiting - 1)
+		if waiting == 0 then
+			fetching = false
+		end
+		local n = #links(ev)
+		out.note = if problem then problem elseif n > 1 then #events .. " events read from " .. n .. " calendars." else #events .. " events read."
 	elseif e == "action" then
 		local a = ev.action or ""
 		if a == "prev" or a == "next" then
@@ -402,7 +453,7 @@ function handle(ev)
 		local every = math.max(1, ev.settings.poll_min or 10) * 60000
 		if url ~= url_seen then
 			url_seen = url
-			events, problem = {}, nil
+			events, problem, by_cal, problems = {}, nil, {}, {}
 			ask(ev, out)
 		elseif not fetching and (last_fetch == nil or now - last_fetch >= every) then
 			ask(ev, out)
